@@ -21,3 +21,6 @@ htmlcov/
 .DS_Store
 .idea/
 .vscode/
+
+# Local validation run outputs
+.ai/validation-runs/
