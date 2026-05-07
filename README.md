@@ -56,7 +56,7 @@ can_form_word("שלו", "שלום")       # → False  (missing מ)
 
 # Scoring (placeholder — counts Hebrew letters)
 score_word("שלום")                 # → 4
-score_word("ירושלים")              # → 8
+score_word("ירושלים")              # → 7
 ```
 
 ---

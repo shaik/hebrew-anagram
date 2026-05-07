@@ -36,11 +36,16 @@ This project is a controlled environment for validating that a **metaswarm / mul
 
 ## Suggested validation sequence
 
-1. `git init` the repo (not done yet — intentionally left for agent workflow test).
-2. Run `pytest` from a fresh venv and confirm all tests pass.
-3. Make a small, well-defined change (e.g., add `score_word` letter weighting) using a second agent CLI.
-4. Verify the second agent runs the test suite, commits, and the change is reviewable.
-5. Introduce a metaswarm orchestration layer to coordinate a two-agent task split.
+Current state (as of this update): the repo has been initialized with `git init`, a baseline commit is in place, and the local test suite passes (64/64). `scripts/validate_agent_setup.py` reports environment, repo, data, and agent-CLI status as healthy.
+
+Remaining steps before introducing metaswarm:
+
+1. Have **Codex CLI** open the repo read-only and produce its own observations (no code changes).
+2. Have **Gemini CLI** do the same, independently.
+3. Cross-check both reports against `scripts/validate_agent_setup.py` output.
+4. Resolve any documentation or setup issues surfaced by the two agents.
+5. Make a small, well-defined change (e.g., add `score_word` letter weighting) using a second agent CLI to confirm the round-trip workflow (edit → tests → commit → review).
+6. Introduce a metaswarm orchestration layer to coordinate a two-agent task split.
 
 ## Future task: dictionary-based matching with `hebrew_dict.txt`
 

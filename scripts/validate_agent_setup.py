@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """Local diagnostic for metaswarm-hebrew-anagram-poc.
 
-Read-only. Stdlib-only. Runs from anywhere — locates the repo via this
-script's path. Produces a structured PASS/WARN/FAIL/INFO report on the
-terminal and writes a timestamped copy to ``.ai/validation-runs/``.
+Read-only with respect to source files (``src/``), tests (``tests/``), data
+files (``data/``), package metadata (``pyproject.toml``), and Git state —
+none of these are modified by this script. The one side effect is that the
+script creates ``.ai/validation-runs/`` if missing and writes a timestamped
+report file (``agent_setup_validation_YYYYMMDD_HHMMSS.txt``) into it.
+
+Stdlib-only. Runs from anywhere — locates the repo via this script's path.
+Produces a structured PASS/WARN/FAIL/INFO report on the terminal and writes
+a timestamped copy to ``.ai/validation-runs/``.
 
 Exit code: 0 if no FAIL items, 1 otherwise.
 """
