@@ -57,6 +57,14 @@ can_form_word("שלו", "שלום")       # → False  (missing מ)
 # Scoring (placeholder — counts Hebrew letters)
 score_word("שלום")                 # → 4
 score_word("ירושלים")              # → 7
+
+# Dictionary lookup — find every dictionary word formable from a rack
+from hebrew_anagram import find_matching_words
+find_matching_words("ספרשבת", "data/sample_words_he.txt")
+# → list of words from the dictionary that can be spelled with those letters,
+#   in the order they appear in the file. One-letter entries are filtered by
+#   default (min_length=2). Pass normalize_finals=True if you want ם/מ etc.
+#   collapsed — but pre-normalize the rack too in that case.
 ```
 
 ---

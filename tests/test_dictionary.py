@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from hebrew_anagram.dictionary import load_words
+from hebrew_anagram.dictionary import find_matching_words, load_words
 
 
 def _write(tmp_path: Path, content: str, name: str = "words.txt") -> Path:
@@ -136,6 +136,79 @@ class TestMissingFile:
         missing = tmp_path / "does_not_exist.txt"
         with pytest.raises(FileNotFoundError):
             load_words(missing)
+
+
+class TestFindMatchingWords:
+    def test_exact_match(self, tmp_path: Path):
+        # Rack equals a dictionary word; ספר ends with ר (not a final letter)
+        p = _write(tmp_path, "ספר\nאבג\n")
+        # rack contains ר, פ, ס — exactly enough for ספר
+        assert find_matching_words("ספר", p) == ["ספר"]
+
+    def test_extra_letters_in_rack(self, tmp_path: Path):
+        p = _write(tmp_path, "ספר\nשבת\n")
+        # rack covers both candidates
+        result = find_matching_words("ספרשבת", p)
+        assert result == ["ספר", "שבת"]
+
+    def test_insufficient_letters(self, tmp_path: Path):
+        p = _write(tmp_path, "ספר\nשבת\n")
+        # rack has letters for ספר but not שבת
+        assert find_matching_words("ספר", p) == ["ספר"]
+
+    def test_no_matches(self, tmp_path: Path):
+        p = _write(tmp_path, "ספר\nשבת\n")
+        assert find_matching_words("אבגד", p) == []
+
+    def test_wildcard(self, tmp_path: Path):
+        p = _write(tmp_path, "ספר\nשבת\n")
+        # one wildcard substitutes for the missing ת
+        assert find_matching_words("שב?", p) == ["שבת"]
+
+    def test_custom_wildcard_char(self, tmp_path: Path):
+        p = _write(tmp_path, "ספר\n")
+        assert find_matching_words("ס*ר", p, wildcard="*") == ["ספר"]
+
+    def test_one_letter_entries_filtered_by_default(self, tmp_path: Path):
+        # Even though the rack contains "א", a one-letter dictionary entry is
+        # dropped by load_words and never considered for matching.
+        p = _write(tmp_path, "א\nספר\n")
+        assert find_matching_words("אספר", p) == ["ספר"]
+
+    def test_preserves_dictionary_order(self, tmp_path: Path):
+        # Write entries in a non-alphabetical order; result must mirror it.
+        p = _write(tmp_path, "שבת\nספר\nאב\n")
+        rack = "אבספרשבת"
+        assert find_matching_words(rack, p) == ["שבת", "ספר", "אב"]
+
+    def test_normalize_finals_true(self, tmp_path: Path):
+        # Dict word שלום (with ם U+05DD) becomes שלומ (regular מ U+05DE) when
+        # normalize_finals=True. The rack must also use regular מ to match,
+        # since this function does NOT pre-normalize the rack.
+        p = _write(tmp_path, "שלום\nאבג\n")
+        rack_with_regular_mem = "שלומ"
+        assert find_matching_words(rack_with_regular_mem, p, normalize_finals=True) == [
+            "שלומ"
+        ]
+
+    def test_normalize_finals_default_keeps_finals(self, tmp_path: Path):
+        # Default behavior: dict keeps final-form ם, so a rack with final ם
+        # matches and a rack with regular מ does not.
+        p = _write(tmp_path, "שלום\n")
+        assert find_matching_words("שלום", p) == ["שלום"]
+        assert find_matching_words("שלומ", p) == []
+
+    def test_missing_path_raises_file_not_found(self, tmp_path: Path):
+        missing = tmp_path / "nope.txt"
+        with pytest.raises(FileNotFoundError):
+            find_matching_words("שלום", missing)
+
+    def test_min_length_forwarded(self, tmp_path: Path):
+        # When min_length=1, the one-letter entry survives load_words and
+        # becomes eligible for matching.
+        p = _write(tmp_path, "א\nספר\n")
+        result = find_matching_words("אספר", p, min_length=1)
+        assert result == ["א", "ספר"]
 
 
 class TestSourceFileNotMutated:

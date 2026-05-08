@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .letters import normalize_final_letters, remove_niqqud
+from .matcher import can_form_word
 
 _HEBREW_BLOCK_START = 0x0590
 _HEBREW_BLOCK_END = 0x05FF
@@ -59,3 +60,32 @@ def load_words(
         out.append(word)
 
     return out
+
+
+def find_matching_words(
+    letters: str,
+    dictionary_path: str | Path,
+    *,
+    min_length: int = 2,
+    normalize_finals: bool = False,
+    wildcard: str = "?",
+) -> list[str]:
+    """Return dictionary words that can be formed from *letters*.
+
+    Loads ``dictionary_path`` via :func:`load_words` (forwarding ``min_length``
+    and ``normalize_finals``), then keeps every loaded word for which
+    :func:`hebrew_anagram.matcher.can_form_word` returns ``True`` against
+    *letters*. Result order matches the load order from :func:`load_words`.
+
+    The *letters* string is passed through to ``can_form_word`` unchanged —
+    final-letter normalization is **not** applied to it. When using
+    ``normalize_finals=True``, callers should pre-normalize *letters* if they
+    want final-form letters in the rack to match base forms in the loaded
+    dictionary.
+    """
+    words = load_words(
+        dictionary_path,
+        min_length=min_length,
+        normalize_finals=normalize_finals,
+    )
+    return [w for w in words if can_form_word(letters, w, wildcard=wildcard)]
