@@ -1,18 +1,28 @@
 # metaswarm-hebrew-anagram-poc
 
-A minimal Python proof-of-concept for **validating metaswarm / multi-agent coding workflows**.
+A minimal proof-of-concept for **validating metaswarm / multi-agent coding workflows**.
 
 This is **not** a production Hebrew anagram application. Its purpose is to exercise CLI-based agentic workflows (Claude Code, Gemini CLI, Codex CLI, metaswarm) on a real but bounded problem — Hebrew text normalization and letter matching.
 
+The repository hosts two parallel implementations:
+
+| Tree | Stack | Role |
+|---|---|---|
+| `src/hebrew_anagram/` + `tests/` | Pure Python + pytest | Reference implementation. 100% test coverage. Authoritative for behavior. |
+| `web/` | React + TypeScript + Vite | Static, client-side mobile-first web app. Reimplements the Python logic in TS and ships as static files suitable for GitHub Pages. No backend, no API, no database. |
+
+Both trees use the same data file (`data/hebrew_dict.txt`); the web app keeps a copy at `web/public/hebrew_dict.txt` so Vite can bundle it as a static asset.
+
 ---
 
-## What it does
+## Python package — what it does
 
 | Module | Responsibility |
 |---|---|
 | `letters.py` | Niqqud removal, final-letter normalization, text normalization |
 | `matcher.py` | Check whether a word can be formed from a letter pool (with wildcard support) |
 | `scoring.py` | Placeholder word scoring (letter count) |
+| `dictionary.py` | Load + preprocess word lists, find dictionary words formable from a rack |
 
 ---
 
@@ -92,6 +102,63 @@ Until that preprocessing step is implemented, treat `hebrew_dict.txt` as raw inp
 - **Niqqud** is stripped before matching; it is preserved when `remove_niqqud_enabled=False`.
 - **Wildcards** consume one Hebrew letter each; they do not match niqqud or whitespace.
 - Scoring is intentionally trivial (1 pt / letter) and will be replaced in a future iteration.
+
+---
+
+## Web app (`web/`)
+
+A static, client-side React + TypeScript + Vite app that wraps the same logic in a Hebrew, RTL, mobile-first UI. **Everything runs in the browser** — no backend, no API, no telemetry, no service calls. The dictionary is shipped as a plain text file under `web/public/`.
+
+### Local development
+
+```bash
+cd web
+npm install
+npm run dev          # vite dev server with hot reload
+npm run build        # produces web/dist/
+npm run preview      # serves the production build locally
+npm test             # vitest, runs the TS unit tests
+```
+
+The TS port of the Python logic lives under `web/src/lib/` (`hebrew.ts`, `matcher.ts`, `dictionary.ts`, `scoring.ts`) and has its own unit tests next to each module.
+
+### Static build & GitHub Pages deployment
+
+`vite.config.ts` sets `base: "./"` so the build's `index.html` references assets via relative paths (`./assets/...`). The same `dist/` therefore deploys cleanly whether the site is served at:
+
+- a domain root (`https://example.com/`),
+- a GitHub Pages user site (`https://<user>.github.io/`),
+- a GitHub Pages project subpath (`https://<user>.github.io/<repo>/`),
+- or a custom domain.
+
+The dictionary is fetched at runtime via `${import.meta.env.BASE_URL}hebrew_dict.txt`, which Vite resolves relative to the same base.
+
+**Manual GitHub Pages deploy (no GitHub Actions required):**
+
+```bash
+cd web
+npm install
+npm run build
+# Push the contents of web/dist/ to the gh-pages branch:
+git worktree add ../gh-pages-deploy gh-pages 2>/dev/null \
+  || git worktree add -b gh-pages ../gh-pages-deploy
+rsync -a --delete dist/ ../gh-pages-deploy/
+cd ../gh-pages-deploy
+git add -A && git commit -m "Deploy $(date +%F)" && git push -u origin gh-pages
+```
+
+Then in GitHub: **Settings → Pages → Source: Deploy from branch → `gh-pages` / root**. A GitHub Actions workflow can be added later if you want push-to-deploy; the current setup is intentionally CI-free to keep the POC simple.
+
+### Web app architecture (one-line summary)
+
+`App.tsx` fetches the dictionary on mount, preprocesses it (niqqud strip, optional final-letter collapse, one-letter filter, dedup), and on every keystroke filters by `canFormWord(rack, word)` and re-sorts. Components (`SearchForm`, `OptionsPanel`, `ResultsList`, `ResultCard`, `EmptyState`) are presentational; all state lives in `App`. No web worker, no router, no state-management library, no UI framework — plain React + plain CSS.
+
+### Dictionary
+
+- Source of truth: `data/hebrew_dict.txt`.
+- The web build ships a **copy** at `web/public/hebrew_dict.txt`. **Do not edit the copy** — re-copy it from `data/` if the source changes.
+- One-letter entries are filtered out by default during preprocessing, matching the Python policy.
+- **Final-letter normalization defaults to ON in the web UI** (the toggle in the Options panel). This is a deliberate divergence from the Python default: the bundled dictionary was found to use base forms (`מ`, `נ`, …) at word ends instead of final forms (`ם`, `ן`, …), so without normalization a user typing "שלום" would match zero entries. The Python reference keeps the toggle off for code-level clarity. End users can still turn it off in the UI.
 
 ---
 
