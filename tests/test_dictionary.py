@@ -110,6 +110,12 @@ class TestDeduplication:
         p = _write(tmp_path, "שָׁלוֹם\nשלום\n")
         assert load_words(p) == ["שלום"]
 
+    def test_dedup_after_final_normalization(self, tmp_path: Path):
+        # שלום (ends with final-mem ם U+05DD) and שלומ (regular מ U+05DE)
+        # dedupe to a single entry when normalize_finals=True maps both to שלומ.
+        p = _write(tmp_path, "שלום\nשלומ\n")
+        assert load_words(p, normalize_finals=True) == ["שלומ"]
+
 
 class TestTypeErrors:
     def test_int_path_raises_type_error(self):
