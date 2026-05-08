@@ -68,6 +68,17 @@ This is a good metaswarm test case because it requires:
 
 Document the chosen preprocessing policy in code or in a follow-up note in this file when the task is taken on.
 
+## External tool routing status (2026-05-08)
+
+Diagnostic results for the two external CLIs configured in `.metaswarm/external-tools.yaml`:
+
+- **Codex** — installed and authenticated (`codex --version` → `codex-cli 0.129.0`; `codex login status` → "Logged in using ChatGPT"; `codex exec --help` parses correctly), but `codex exec` itself **hangs indefinitely** even on a trivial no-repo prompt ("Reply with exactly: CODEX_OK", run from `/tmp`). Reproduced twice — once with a 10 KB review prompt, once with the minimal probe. Not a prompt-size or repo-context issue.
+- **Gemini** — installed and reachable (`gemini --version` → `0.39.0`); `gemini -p` returned a complete structured review during the dictionary-loader adversarial review task. End-to-end routing **works**.
+
+**Action taken:** disabled the Codex adapter in `.metaswarm/external-tools.yaml` (`adapters.codex.enabled: false`). With Codex disabled, the `cheapest-available` default implementer naturally selects Gemini and codex is skipped in the escalation chain.
+
+**Codex troubleshooting is out of scope** for this metaswarm POC. Likely follow-ups for that separate effort: re-login, inspect `~/.codex/config.toml`, try `codex update`, test on a different network, or open an issue with the codex CLI maintainers. Re-enable the adapter only after `codex exec` is verified to respond on a minimal prompt.
+
 ## Known assumptions / open questions
 
 - NFC vs. NFD: Hebrew text is assumed to arrive in NFC form. If an agent produces NFD output, niqqud stripping may behave unexpectedly.

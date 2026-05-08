@@ -4,7 +4,10 @@
 
 adapters:
   codex:
-    enabled: true
+    # Disabled 2026-05-08: `codex exec` hangs on this machine even for a
+    # minimal no-repo prompt; CLI itself (--version, login status, --help)
+    # works. Re-enable once that is resolved. See .ai/validation-notes.md.
+    enabled: false
     model: "gpt-5.3-codex"          # Model to use for Codex CLI invocations
     timeout_seconds: 300             # Max seconds per invocation before kill
     sandbox: none                    # docker | platform | none
