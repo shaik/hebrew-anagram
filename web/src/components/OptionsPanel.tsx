@@ -1,9 +1,11 @@
 export type SortOrder = "longest" | "shortest" | "dict";
+export type SearchMode = "single" | "multi";
 
 export interface OptionsState {
   minLength: number;
   normalizeFinals: boolean;
   sort: SortOrder;
+  mode: SearchMode;
 }
 
 interface OptionsPanelProps {
@@ -15,43 +17,69 @@ interface OptionsPanelProps {
 const MIN_LENGTH_CHOICES = [2, 3, 4, 5, 6] as const;
 
 export function OptionsPanel({ options, onChange, disabled }: OptionsPanelProps) {
+  const isMulti = options.mode === "multi";
   return (
     <section className="options" aria-label="אפשרויות חיפוש">
-      <div className="options__row">
-        <label className="options__label" htmlFor="min-length">
-          אורך מינימלי
-        </label>
-        <select
-          id="min-length"
-          className="options__control"
-          value={options.minLength}
-          onChange={(e) => onChange({ ...options, minLength: Number(e.target.value) })}
+      <div className="options__row options__row--mode" role="radiogroup" aria-label="מצב חיפוש">
+        <button
+          type="button"
+          className={`options__mode${isMulti ? "" : " options__mode--active"}`}
+          onClick={() => onChange({ ...options, mode: "single" })}
+          aria-pressed={!isMulti}
           disabled={disabled}
         >
-          {MIN_LENGTH_CHOICES.map((n) => (
-            <option key={n} value={n}>
-              {n} אותיות ומעלה
-            </option>
-          ))}
-        </select>
+          מילים בודדות
+        </button>
+        <button
+          type="button"
+          className={`options__mode${isMulti ? " options__mode--active" : ""}`}
+          onClick={() => onChange({ ...options, mode: "multi" })}
+          aria-pressed={isMulti}
+          disabled={disabled}
+        >
+          אנגרמות מרובות מילים
+        </button>
       </div>
 
-      <div className="options__row">
-        <label className="options__label" htmlFor="sort">
-          מיון
-        </label>
-        <select
-          id="sort"
-          className="options__control"
-          value={options.sort}
-          onChange={(e) => onChange({ ...options, sort: e.target.value as SortOrder })}
-          disabled={disabled}
-        >
-          <option value="longest">ארוכות תחילה</option>
-          <option value="shortest">קצרות תחילה</option>
-          <option value="dict">סדר המילון</option>
-        </select>
-      </div>
+      {!isMulti && (
+        <>
+          <div className="options__row">
+            <label className="options__label" htmlFor="min-length">
+              אורך מינימלי
+            </label>
+            <select
+              id="min-length"
+              className="options__control"
+              value={options.minLength}
+              onChange={(e) => onChange({ ...options, minLength: Number(e.target.value) })}
+              disabled={disabled}
+            >
+              {MIN_LENGTH_CHOICES.map((n) => (
+                <option key={n} value={n}>
+                  {n} אותיות ומעלה
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="options__row">
+            <label className="options__label" htmlFor="sort">
+              מיון
+            </label>
+            <select
+              id="sort"
+              className="options__control"
+              value={options.sort}
+              onChange={(e) => onChange({ ...options, sort: e.target.value as SortOrder })}
+              disabled={disabled}
+            >
+              <option value="longest">ארוכות תחילה</option>
+              <option value="shortest">קצרות תחילה</option>
+              <option value="dict">סדר המילון</option>
+            </select>
+          </div>
+        </>
+      )}
 
       <div className="options__row options__row--toggle">
         <label className="options__label" htmlFor="normalize-finals">

@@ -160,6 +160,25 @@ Then in GitHub: **Settings → Pages → Source: Deploy from branch → `gh-page
 - One-letter entries are filtered out by default during preprocessing, matching the Python policy.
 - **Final-letter normalization defaults to ON in the web UI** (the toggle in the Options panel). This is a deliberate divergence from the Python default: the bundled dictionary was found to use base forms (`מ`, `נ`, …) at word ends instead of final forms (`ם`, `ן`, …), so without normalization a user typing "שלום" would match zero entries. The Python reference keeps the toggle off for code-level clarity. End users can still turn it off in the UI.
 
+### Display: final-letter restoration
+
+Internal matching keeps Hebrew words in base form (e.g. `שלומ`, `מלכ`) so the bundled dictionary stays searchable. For display, `restoreFinalLettersForDisplay` (`web/src/lib/hebrew.ts`) rewrites the **last** letter of each Hebrew word to its final form when one exists (`כ→ך`, `מ→ם`, `נ→ן`, `פ→ף`, `צ→ץ`). Interior letters are left alone, whitespace and punctuation are preserved, and words that already have correct final letters pass through unchanged. The function is applied to every result word in both single-word and multi-word modes, so the UI always renders natural Hebrew.
+
+### Multi-word exact anagrams
+
+The web app supports a second mode that finds combinations of 2–3 dictionary words whose letters together exactly equal the input:
+
+- Toggle: **"אנגרמות מרובות מילים"** in the Options panel.
+- Algorithm: input is normalized (niqqud stripped, whitespace removed, optionally final-letter-collapsed), then a depth-first search with non-decreasing candidate index walks the preprocessed dictionary up to depth 3. A combination is reported only when the remaining letter multiset is empty. The non-decreasing-index rule rules out permutation duplicates by construction.
+- Repetition: the same word may appear more than once in a combination if the input letters allow it.
+- Result cap: **200 combinations** (`MULTI_WORD_DEFAULT_MAX_RESULTS` in `web/src/lib/multiwordAnagrams.ts`). Search returns early once the cap is reached, so worst-case time stays bounded for adversarial inputs.
+- Spaces: whitespace in the input is stripped before matching, so `"שי כפיר"` and `"שיכפיר"` produce the same combinations.
+- Wildcard: multi-word search **does not support `?`** — exact letter consumption with wildcards is intentionally out of scope. When the input contains a `?`, the UI shows a Hebrew note instead of partial results, and suggests removing the `?` or switching back to single-word mode.
+- Input-length safeguard: searches over more than **14 letters** (post-niqqud-strip, post-whitespace-strip) short-circuit and show a Hebrew note. The DFS is bounded by candidate-count³, which can grow uncomfortably with very long inputs; 14 covers natural Hebrew phrases like `שי כפיר` or `ירושלים` while keeping the main thread responsive.
+- All computation runs in the browser. There is no Web Worker; the result cap + early termination + input-length cap keep typical UX snappy without one.
+
+Unit tests (`web/src/lib/multiwordAnagrams.test.ts`) cover exact consumption, 2- and 3-word combinations, partial-match rejection, spaces in input, wildcard disable, dictionary-order stability, repeated-word combos, and the result cap.
+
 ---
 
 ## Next step

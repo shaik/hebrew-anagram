@@ -324,6 +324,110 @@ kbd {
   border-radius: 999px;
 }
 
+/* ----- Mode toggle (single / multi) ----- */
+
+.options__row--mode {
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.options__mode {
+  flex: 1;
+  padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.options__mode:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.options__mode--active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  .options__mode--active {
+    color: var(--bg);
+  }
+}
+
+.options__mode:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ----- Mode explainer ----- */
+
+.mode-explainer {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--accent-soft);
+  border-radius: var(--radius-md);
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+}
+
+.mode-explainer strong {
+  color: var(--ink);
+}
+
+/* ----- Multi-word results ----- */
+
+.multi-results-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.multi-result-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  box-shadow: var(--shadow);
+  transition: transform 120ms ease;
+}
+
+.multi-result-card:hover {
+  transform: translateY(-1px);
+}
+
+.multi-result-card__phrase {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  word-spacing: 0.15em;
+}
+
+.multi-result-card__meta {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  background: var(--surface-2);
+  padding: 2px 10px;
+  border-radius: 999px;
+  min-width: 2em;
+  text-align: center;
+}
+
 /* ----- Empty / loading / error ----- */
 
 .empty {
