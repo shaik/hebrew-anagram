@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { SearchForm } from "./components/SearchForm";
-import { OptionsPanel, type OptionsState } from "./components/OptionsPanel";
+import {
+  OptionsPanel,
+  type OptionsState,
+  type SearchMode,
+} from "./components/OptionsPanel";
 import { ResultsList } from "./components/ResultsList";
 import { MultiResultsList } from "./components/MultiResultsList";
+import { FixedWordField } from "./components/FixedWordField";
 import { EmptyState } from "./components/EmptyState";
 import { findMatchingWords, preprocessWordList } from "./lib/dictionary";
 import {
@@ -12,15 +17,22 @@ import {
 } from "./lib/hebrew";
 import {
   findMultiWordAnagrams,
+  isRequiredWordSatisfiable,
   MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS,
   MULTI_WORD_DEFAULT_MAX_RESULTS,
   type MultiWordResult,
 } from "./lib/multiwordAnagrams";
+import {
+  findWordsByPattern,
+  PATTERN_DEFAULT_MAX_RESULTS,
+} from "./lib/patternSearch";
 import { scoreWord } from "./lib/scoring";
 
 const DICT_URL = `${import.meta.env.BASE_URL}hebrew_dict.txt`;
 const MAX_DISPLAYED = 500;
 const WILDCARD = "?";
+const FIXED_WORD_INVALID_MSG =
+  "המילה הקבועה אינה מורכבת מהאותיות שהוזנו";
 
 // Default normalizeFinals=true because the bundled hebrew_dict.txt uses base
 // forms (מ, נ, …) instead of final forms (ם, ן, …) at word ends. With the
@@ -40,6 +52,34 @@ type DictState =
   | { status: "ready"; raw: string }
   | { status: "error"; message: string };
 
+interface SearchFormCopy {
+  label: string;
+  placeholder: string;
+  hint: ReactNode;
+}
+
+const SEARCH_FORM_COPY: Record<SearchMode, SearchFormCopy> = {
+  single: {
+    label: "האותיות שלך",
+    placeholder: "למשל: שלום? בית",
+    hint: (
+      <>
+        רווחים מתעלמים. השתמשו ב־<kbd>?</kbd> כג׳וקר לאות אחת כלשהי.
+      </>
+    ),
+  },
+  multi: {
+    label: "האותיות שלך",
+    placeholder: "למשל: שי כפיר",
+    hint: <>רווחים מתעלמים. ג׳וקר אינו נתמך במצב זה.</>,
+  },
+  crossword: {
+    label: "תבנית",
+    placeholder: "למשל: ??גד? או ?א??ב??צ",
+    hint: <>הקלידו אותיות ידועות וכל סימן אחר כתו חופשי.</>,
+  },
+};
+
 function sortResults(words: readonly string[], order: OptionsState["sort"]): string[] {
   if (order === "dict") return [...words];
   const copy = [...words];
@@ -51,6 +91,7 @@ function sortResults(words: readonly string[], order: OptionsState["sort"]): str
 
 export default function App() {
   const [rack, setRack] = useState("");
+  const [fixedWord, setFixedWord] = useState("");
   const [options, setOptions] = useState<OptionsState>(DEFAULT_OPTIONS);
   const [dictState, setDictState] = useState<DictState>({ status: "loading" });
 
@@ -87,11 +128,23 @@ export default function App() {
   }, [dictState, options.normalizeFinals]);
 
   const trimmedRack = rack.trim();
+  const trimmedFixed = fixedWord.trim();
 
-  // Single memo that branches on mode. In single mode we expose both the
-  // total count and the truncated/sorted display list. In multi mode we
-  // expose the combinations (already capped to MULTI_WORD_DEFAULT_MAX_RESULTS
-  // by the search itself) plus a wildcard-disabled flag for the UI.
+  // Decide whether the multi-mode "fixed word" is valid for the current
+  // rack. Empty fixed → no constraint (valid). Non-empty fixed must be a
+  // subset of the rack's letter multiset.
+  const fixedWordValid = useMemo(() => {
+    if (options.mode !== "multi") return true;
+    if (trimmedFixed === "" || trimmedRack === "") return true;
+    const rackForCheck = options.normalizeFinals
+      ? normalizeFinalLetters(trimmedRack)
+      : trimmedRack;
+    const fixedForCheck = options.normalizeFinals
+      ? normalizeFinalLetters(trimmedFixed)
+      : trimmedFixed;
+    return isRequiredWordSatisfiable(fixedForCheck, rackForCheck);
+  }, [options.mode, options.normalizeFinals, trimmedFixed, trimmedRack]);
+
   type SearchState =
     | { kind: "empty" }
     | {
@@ -104,10 +157,34 @@ export default function App() {
         combos: MultiWordResult[];
         wildcardDisabled: boolean;
         inputTooLong: boolean;
+        fixedInvalid: boolean;
+      }
+    | {
+        kind: "crossword";
+        results: { word: string; score: number }[];
+        totalMatches: number;
       };
 
   const searchState = useMemo<SearchState>(() => {
-    if (!preprocessed || trimmedRack === "") return { kind: "empty" };
+    if (!preprocessed) return { kind: "empty" };
+
+    // Crossword mode is driven entirely by the rack input as the pattern.
+    if (options.mode === "crossword") {
+      // Strip whitespace so we can decide "empty" deterministically; the
+      // pattern function does the same internally.
+      const cleanedPattern = removeNiqqud(trimmedRack).replace(/\s+/g, "");
+      if (cleanedPattern.length === 0) return { kind: "empty" };
+      const matched = findWordsByPattern(trimmedRack, preprocessed, {
+        normalizeFinals: options.normalizeFinals,
+      });
+      const display = matched.map((word) => ({
+        word: restoreFinalLettersForDisplay(word),
+        score: scoreWord(word),
+      }));
+      return { kind: "crossword", results: display, totalMatches: matched.length };
+    }
+
+    if (trimmedRack === "") return { kind: "empty" };
 
     if (options.mode === "multi") {
       if (trimmedRack.includes(WILDCARD)) {
@@ -116,10 +193,9 @@ export default function App() {
           combos: [],
           wildcardDisabled: true,
           inputTooLong: false,
+          fixedInvalid: false,
         };
       }
-      // Recompute the cleaned-input letter count to surface a UI-level
-      // explanation when the search itself short-circuits on length.
       const cleanLetters = removeNiqqud(trimmedRack).replace(/\s+/g, "").length;
       if (cleanLetters > MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS) {
         return {
@@ -127,20 +203,42 @@ export default function App() {
           combos: [],
           wildcardDisabled: false,
           inputTooLong: true,
+          fixedInvalid: false,
         };
       }
+      // If a non-empty fixed word is invalid for the rack, surface that
+      // explicitly with no combos. Empty fixed word means no constraint.
       const effectiveRack = options.normalizeFinals
         ? normalizeFinalLetters(trimmedRack)
         : trimmedRack;
-      const combos = findMultiWordAnagrams(effectiveRack, preprocessed);
+      const effectiveFixed =
+        trimmedFixed === ""
+          ? ""
+          : options.normalizeFinals
+            ? normalizeFinalLetters(trimmedFixed)
+            : trimmedFixed;
+      if (effectiveFixed !== "" && !isRequiredWordSatisfiable(effectiveFixed, effectiveRack)) {
+        return {
+          kind: "multi",
+          combos: [],
+          wildcardDisabled: false,
+          inputTooLong: false,
+          fixedInvalid: true,
+        };
+      }
+      const combos = findMultiWordAnagrams(effectiveRack, preprocessed, {
+        requiredWord: effectiveFixed || undefined,
+      });
       return {
         kind: "multi",
         combos,
         wildcardDisabled: false,
         inputTooLong: false,
+        fixedInvalid: false,
       };
     }
 
+    // Single-word mode.
     const effectiveRack = options.normalizeFinals
       ? normalizeFinalLetters(trimmedRack)
       : trimmedRack;
@@ -156,6 +254,7 @@ export default function App() {
   }, [
     preprocessed,
     trimmedRack,
+    trimmedFixed,
     options.mode,
     options.minLength,
     options.normalizeFinals,
@@ -195,6 +294,10 @@ export default function App() {
           message={`קלט ארוך מדי לחיפוש מהיר. נסו עד ${MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS} אותיות (לאחר התעלמות מרווחים), או עברו למצב מילים בודדות.`}
         />
       );
+    } else if (searchState.fixedInvalid) {
+      // The FixedWordField shows the precise error; suppress the generic
+      // empty-state title here to avoid duplicate messaging.
+      body = null;
     } else if (searchState.combos.length === 0) {
       body = <EmptyState variant="no-results" />;
     } else {
@@ -205,6 +308,20 @@ export default function App() {
             cap={MULTI_WORD_DEFAULT_MAX_RESULTS}
           />
           <MultiResultsList combos={searchState.combos} />
+        </>
+      );
+    }
+  } else if (searchState.kind === "crossword") {
+    if (searchState.results.length === 0) {
+      body = <EmptyState variant="no-results" />;
+    } else {
+      body = (
+        <>
+          <PatternResultsHeader
+            count={searchState.totalMatches}
+            cap={PATTERN_DEFAULT_MAX_RESULTS}
+          />
+          <ResultsList results={searchState.results} />
         </>
       );
     }
@@ -222,6 +339,8 @@ export default function App() {
     );
   }
 
+  const formCopy = SEARCH_FORM_COPY[options.mode];
+
   return (
     <div className="app">
       <header className="app__header">
@@ -235,13 +354,31 @@ export default function App() {
           onChange={setRack}
           onClear={() => setRack("")}
           disabled={!dictReady}
+          label={formCopy.label}
+          placeholder={formCopy.placeholder}
+          hint={formCopy.hint}
         />
         <OptionsPanel options={options} onChange={setOptions} disabled={!dictReady} />
+        {options.mode === "multi" && (
+          <FixedWordField
+            value={fixedWord}
+            onChange={setFixedWord}
+            disabled={!dictReady}
+            errorMessage={fixedWordValid ? undefined : FIXED_WORD_INVALID_MSG}
+          />
+        )}
         {options.mode === "multi" && (
           <p className="mode-explainer">
             צירופים שמשתמשים בכל האותיות שלך <strong>בדיוק</strong>. רווחים
             מתעלמים. עד {MULTI_WORD_DEFAULT_MAX_RESULTS.toLocaleString("he-IL")}{" "}
             תוצאות.
+          </p>
+        )}
+        {options.mode === "crossword" && (
+          <p className="mode-explainer">
+            <strong>תבנית תשבץ:</strong> אותיות עבריות הן מיקומים קבועים, וכל
+            תו אחר (ספרה, סימן פיסוק וכו׳) הוא תו חופשי. אורך המילה חייב להיות
+            זהה לאורך התבנית.
           </p>
         )}
         {body}
@@ -276,6 +413,19 @@ function MultiResultsHeader({ count, cap }: { count: number; cap: number }) {
     <div className="results-header" aria-live="polite">
       <strong>{count.toLocaleString("he-IL")}</strong>{" "}
       {count === 1 ? "צירוף" : "צירופים"}
+      {capped && (
+        <span className="results-header__note"> (הוגבל ל־{cap.toLocaleString("he-IL")})</span>
+      )}
+    </div>
+  );
+}
+
+function PatternResultsHeader({ count, cap }: { count: number; cap: number }) {
+  const capped = count >= cap;
+  return (
+    <div className="results-header" aria-live="polite">
+      <strong>{count.toLocaleString("he-IL")}</strong>{" "}
+      {count === 1 ? "מילה תואמת לתבנית" : "מילים תואמות לתבנית"}
       {capped && (
         <span className="results-header__note"> (הוגבל ל־{cap.toLocaleString("he-IL")})</span>
       )}

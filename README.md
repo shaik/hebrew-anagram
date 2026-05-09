@@ -179,6 +179,30 @@ The web app supports a second mode that finds combinations of 2–3 dictionary w
 
 Unit tests (`web/src/lib/multiwordAnagrams.test.ts`) cover exact consumption, 2- and 3-word combinations, partial-match rejection, spaces in input, wildcard disable, dictionary-order stability, repeated-word combos, and the result cap.
 
+#### Required ("fixed") word
+
+In multi-word mode the user can supply an optional **"מילה קבועה"** that every returned combination must include. The fixed word is treated as one of the (up to 3) words, so with `maxWords=3` the search adds up to **2 additional** dictionary words. The fixed word appears exactly once per combination — it is excluded from the candidate pool during the additional-word search.
+
+If the fixed word's letters are not a subset of the input, the UI surfaces a Hebrew error (`המילה הקבועה אינה מורכבת מהאותיות שהוזנו`) and no search runs. An empty fixed word disables the constraint entirely (back to the existing behavior).
+
+The implementation lives next to the unconstrained search in `multiwordAnagrams.ts`. A small helper `isRequiredWordSatisfiable(requiredWord, input)` is exported for UI gating.
+
+### Crossword / pattern search
+
+The third mode, **"תבנית תשבץ"**, finds dictionary words that match a positional pattern:
+
+- Input is one pattern string. Hebrew letters in the pattern are *fixed* positions; any non-Hebrew character (`?`, `.`, `*`, digits, ASCII letters, punctuation) is a *wildcard* for one letter.
+- Pattern length is measured **after** whitespace and niqqud are stripped — paste-friendly on mobile, where stray characters often sneak in.
+- Match length is **exact**: a 5-character cleaned pattern only matches 5-character dictionary words.
+- Final-letter normalization respects the same global toggle as the other modes.
+- Result cap: **500 matches** (`PATTERN_DEFAULT_MAX_RESULTS` in `web/src/lib/patternSearch.ts`).
+
+Examples (with `normalizeFinals` on, matching the bundled dictionary):
+- `??גד?` matches every 5-letter word that has `ג` at index 2 and `ד` at index 3.
+- `?א??ב??צ` matches 8-letter words with `א` at 1, `ב` at 4, `צ` at 7.
+
+Unit tests (`web/src/lib/patternSearch.test.ts`) cover fixed letters, every wildcard variant, mixed wildcards, length-mismatch rejection, whitespace and niqqud handling, the final-letter toggle, empty patterns, and the result cap.
+
 ---
 
 ## Next step

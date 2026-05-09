@@ -1,15 +1,40 @@
+import type { ReactNode } from "react";
+
 interface SearchFormProps {
   value: string;
   onChange: (next: string) => void;
   onClear: () => void;
   disabled?: boolean;
+  /** Field label (default: "האותיות שלך"). */
+  label?: string;
+  /** Input placeholder (default: anagram example). */
+  placeholder?: string;
+  /** Helper text under the input. May be a string or React fragment. */
+  hint?: ReactNode;
+  /** ARIA label for the clear button (default: "נקה את שדה האותיות"). */
+  clearAriaLabel?: string;
 }
 
-export function SearchForm({ value, onChange, onClear, disabled }: SearchFormProps) {
+const DEFAULT_HINT = (
+  <>
+    רווחים מתעלמים. השתמשו ב־<kbd>?</kbd> כג׳וקר לאות אחת כלשהי.
+  </>
+);
+
+export function SearchForm({
+  value,
+  onChange,
+  onClear,
+  disabled,
+  label = "האותיות שלך",
+  placeholder = "למשל: שלום? בית",
+  hint = DEFAULT_HINT,
+  clearAriaLabel = "נקה את שדה האותיות",
+}: SearchFormProps) {
   return (
     <section className="search">
       <label htmlFor="rack" className="search__label">
-        האותיות שלך
+        {label}
       </label>
       <div className="search__input-wrap">
         <input
@@ -23,7 +48,7 @@ export function SearchForm({ value, onChange, onClear, disabled }: SearchFormPro
           spellCheck={false}
           dir="rtl"
           lang="he"
-          placeholder="למשל: שלום? בית"
+          placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
@@ -34,7 +59,7 @@ export function SearchForm({ value, onChange, onClear, disabled }: SearchFormPro
             type="button"
             className="search__clear"
             onClick={onClear}
-            aria-label="נקה את שדה האותיות"
+            aria-label={clearAriaLabel}
             disabled={disabled}
           >
             ×
@@ -42,7 +67,7 @@ export function SearchForm({ value, onChange, onClear, disabled }: SearchFormPro
         )}
       </div>
       <p id="rack-hint" className="search__hint">
-        רווחים מתעלמים. השתמשו ב־<kbd>?</kbd> כג׳וקר לאות אחת כלשהי.
+        {hint}
       </p>
     </section>
   );

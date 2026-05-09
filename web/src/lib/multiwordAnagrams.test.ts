@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findMultiWordAnagrams,
+  isRequiredWordSatisfiable,
   MULTI_WORD_DEFAULT_MAX_RESULTS,
 } from "./multiwordAnagrams";
 
@@ -179,5 +180,146 @@ describe("findMultiWordAnagrams — repeats and limits", () => {
     expect(
       findMultiWordAnagrams("אָב גָד", ["אב", "גד"], { maxInputLetters: 4 }),
     ).toEqual([{ words: ["אב", "גד"] }]);
+  });
+});
+
+describe("findMultiWordAnagrams — requiredWord", () => {
+  it("empty required word behaves identically to no requiredWord", () => {
+    const dict = ["אב", "גד"];
+    const noOpt = findMultiWordAnagrams("אבגד", dict);
+    const empty = findMultiWordAnagrams("אבגד", dict, { requiredWord: "" });
+    const ws = findMultiWordAnagrams("אבגד", dict, { requiredWord: "   " });
+    expect(empty).toEqual(noOpt);
+    expect(ws).toEqual(noOpt);
+  });
+
+  it('finds [קר, אפס] for input "אפרסק" + requiredWord "קר"', () => {
+    // Spec example. אפרסק = {א,פ,ר,ס,ק}; קר = {ק,ר}; remaining = {א,פ,ס};
+    // אפס exactly consumes the remaining letters.
+    const dict = ["קר", "אפס", "אבג"];
+    const result = findMultiWordAnagrams("אפרסק", dict, { requiredWord: "קר" });
+    expect(result).toEqual([{ words: ["קר", "אפס"] }]);
+  });
+
+  it("returns [] when the required word is not a subset of the input", () => {
+    const dict = ["אב", "גד"];
+    // requiredCounts = {ד,ה}; ה is not in input "אבג".
+    expect(
+      findMultiWordAnagrams("אבג", dict, { requiredWord: "דה" }),
+    ).toEqual([]);
+  });
+
+  it("trims whitespace and strips niqqud from the required word", () => {
+    const dict = ["קר", "אפס"];
+    expect(
+      findMultiWordAnagrams("אפרסק", dict, { requiredWord: "  קָר  " }),
+    ).toEqual([{ words: ["קר", "אפס"] }]);
+  });
+
+  it("returns [] when the required word contains non-Hebrew characters", () => {
+    const dict = ["קר", "אפס"];
+    expect(
+      findMultiWordAnagrams("אפרסק", dict, { requiredWord: "ab" }),
+    ).toEqual([]);
+  });
+
+  it("returns the required word alone when it fully consumes the input", () => {
+    // Required word == input → 1-word combination is valid output.
+    const dict = ["קר", "אפס"];
+    expect(
+      findMultiWordAnagrams("קר", dict, { requiredWord: "קר" }),
+    ).toEqual([{ words: ["קר"] }]);
+  });
+
+  it("counts the required word toward maxWords", () => {
+    // 6-letter input + 2-letter required word leaves 4 letters. With
+    // maxWords=3 default, that's at most 2 additional words. With dict
+    // entries that fit, we should see both the 2-additional and 1-additional
+    // splits.
+    const dict = ["אב", "גד", "הו", "גדהו"];
+    const result = findMultiWordAnagrams("אבגדהו", dict, { requiredWord: "אב" });
+    expect(result).toEqual([
+      { words: ["אב", "גד", "הו"] }, // 1 + 2 additional = 3 total
+      { words: ["אב", "גדהו"] }, //     1 + 1 additional = 2 total
+    ]);
+  });
+
+  it("does NOT exceed maxWords when the required word counts as one slot", () => {
+    // With requiredWord="אב" and maxWords=3, the search may add up to 2
+    // additional words. Adding "אב" + "גד" + "הו" + "זח" would be 4 total
+    // and is not allowed.
+    const dict = ["אב", "גד", "הו", "זח"];
+    // Input is 8 letters → 6 remaining after "אב". Three 2-letter words
+    // (גד+הו+זח) would consume exactly that, but require 3 additional words.
+    expect(
+      findMultiWordAnagrams("אבגדהוזח", dict, { requiredWord: "אב" }),
+    ).toEqual([]);
+  });
+
+  it("excludes the required word from candidates so it appears at most once", () => {
+    // If we did NOT exclude, [אב, אב] would be a valid 2-word combo for
+    // input "אבאב" with required "אב". Per spec, the required word must
+    // appear exactly once → result is empty.
+    const dict = ["אב"];
+    expect(
+      findMultiWordAnagrams("אבאב", dict, { requiredWord: "אב" }),
+    ).toEqual([]);
+  });
+
+  it("rejects partial-match combinations (no leftover letters allowed)", () => {
+    // Input has 5 letters. Required אב = 2; remaining 3 letters but only
+    // 2-letter candidate available → no exact consumption → no result.
+    const dict = ["אב", "גד"];
+    expect(
+      findMultiWordAnagrams("אבגדה", dict, { requiredWord: "אב" }),
+    ).toEqual([]);
+  });
+
+  it("respects maxResults under the fixed-word path", () => {
+    // Required word + multiple possible additional splits. Cap at 1.
+    const dict = ["אב", "גד", "הו", "גדהו"];
+    const result = findMultiWordAnagrams("אבגדהו", dict, {
+      requiredWord: "אב",
+      maxResults: 1,
+    });
+    expect(result.length).toBe(1);
+  });
+
+  it("works when the input was provided with the required word's letters mid-string", () => {
+    // The required word's letters don't have to be contiguous in the input.
+    const dict = ["קר", "אפס"];
+    expect(
+      findMultiWordAnagrams("פרא קס", dict, { requiredWord: "קר" }),
+    ).toEqual([{ words: ["קר", "אפס"] }]);
+  });
+});
+
+describe("isRequiredWordSatisfiable", () => {
+  it("treats an empty required word as satisfiable (no constraint)", () => {
+    expect(isRequiredWordSatisfiable("", "אבג")).toBe(true);
+    expect(isRequiredWordSatisfiable("   ", "אבג")).toBe(true);
+  });
+
+  it("returns true when required is a subset of input", () => {
+    expect(isRequiredWordSatisfiable("קר", "אפרסק")).toBe(true);
+    expect(isRequiredWordSatisfiable("קָר", "אפרסק")).toBe(true); // niqqud stripped
+    expect(isRequiredWordSatisfiable(" קר ", "אפרסק")).toBe(true); // whitespace stripped
+  });
+
+  it("returns false when required uses letters absent from input", () => {
+    expect(isRequiredWordSatisfiable("קר", "אבג")).toBe(false); // missing ק, ר
+  });
+
+  it("returns false when required needs more copies of a letter than input has", () => {
+    expect(isRequiredWordSatisfiable("ממ", "מילים")).toBe(false); // only one מ in input
+  });
+
+  it("returns false when required is non-Hebrew", () => {
+    expect(isRequiredWordSatisfiable("abc", "אבג")).toBe(false);
+  });
+
+  it("returns false when input is empty or non-Hebrew", () => {
+    expect(isRequiredWordSatisfiable("קר", "")).toBe(false);
+    expect(isRequiredWordSatisfiable("קר", "abc")).toBe(false);
   });
 });

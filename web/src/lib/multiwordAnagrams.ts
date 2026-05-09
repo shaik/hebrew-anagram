@@ -7,6 +7,11 @@
 // Stable, deterministic ordering — combinations are returned in the order
 // produced by a left-to-right depth-first search with non-decreasing
 // candidate index, which avoids permutation duplicates.
+//
+// Optionally a `requiredWord` can be supplied. Every returned combination
+// then begins with that word and includes it exactly once, with the
+// remaining slots filled by other dictionary words. The required word
+// counts toward `maxWords`.
 
 import { isHebrewOnly, removeNiqqud } from "./hebrew";
 
@@ -39,6 +44,14 @@ export interface MultiWordOptions {
    * responsive. Default 14.
    */
   maxInputLetters?: number;
+  /**
+   * Optional required word. When provided and non-empty, every returned
+   * combination must include this word exactly once at the start of the
+   * combination, with the remaining letters filled by other dictionary
+   * words. Caller is responsible for any final-letter normalization on
+   * this string (same convention as the input).
+   */
+  requiredWord?: string;
 }
 
 export interface MultiWordResult {
@@ -71,6 +84,73 @@ function subtractCounts(remaining: Counts, word: Counts): Counts {
   return out;
 }
 
+interface Candidate {
+  word: string;
+  counts: Counts;
+}
+
+function runSearch(
+  remaining: Counts,
+  candidates: readonly Candidate[],
+  initialChosen: readonly string[],
+  loDepth: number,
+  hiDepth: number,
+  cap: number,
+): MultiWordResult[] {
+  const results: MultiWordResult[] = [];
+  const chosen: string[] = [...initialChosen];
+
+  function search(rem: Counts, startIdx: number): boolean {
+    if (results.length >= cap) return true;
+
+    if (chosen.length >= loDepth && rem.size === 0) {
+      results.push({ words: chosen.slice() });
+      return results.length >= cap;
+    }
+
+    if (chosen.length >= hiDepth) return false;
+
+    for (let i = startIdx; i < candidates.length; i++) {
+      const c = candidates[i];
+      if (!isCountsSubset(c.counts, rem)) continue;
+      chosen.push(c.word);
+      const stop = search(subtractCounts(rem, c.counts), i);
+      chosen.pop();
+      if (stop) return true;
+    }
+    return false;
+  }
+
+  if (cap > 0) search(remaining, 0);
+  return results;
+}
+
+/** Pre-clean a string the same way `findMultiWordAnagrams` does internally. */
+function clean(s: string): string {
+  return removeNiqqud(s).replace(/\s+/g, "");
+}
+
+/**
+ * True iff the (cleaned) `requiredWord` is either empty (no constraint) or
+ * its letter multiset is a subset of the (cleaned) `input`'s. Use this from
+ * UI code to surface a precise error before invoking the search.
+ *
+ * The caller must apply final-letter normalization to both sides if it has
+ * been applied to the dictionary, exactly as for `findMultiWordAnagrams`.
+ */
+export function isRequiredWordSatisfiable(
+  requiredWord: string,
+  input: string,
+): boolean {
+  const cleanRequired = clean(requiredWord);
+  if (cleanRequired === "") return true;
+  if (!isHebrewOnly(cleanRequired)) return false;
+  const cleanInput = clean(input);
+  if (cleanInput === "") return false;
+  if (!isHebrewOnly(cleanInput)) return false;
+  return isCountsSubset(toCounts(cleanRequired), toCounts(cleanInput));
+}
+
 /**
  * Find combinations of dictionary words whose letter multiset exactly equals
  * the input letter multiset.
@@ -78,12 +158,18 @@ function subtractCounts(remaining: Counts, word: Counts): Counts {
  * The input is pre-cleaned: niqqud is stripped, whitespace is removed, and
  * non-Hebrew input is rejected. Combinations span `minWords`..`maxWords`
  * (default 2..3). Permutation duplicates are avoided by enforcing a
- * non-decreasing candidate index during recursion. The same word may legally
- * repeat inside a combination if the input letters allow it.
+ * non-decreasing candidate index during recursion.
  *
- * Returns `[]` if the input is empty, contains the wildcard character, or
- * contains any non-Hebrew character after cleanup. Hard-capped at
- * `maxResults` to keep the worst-case bounded.
+ * If `requiredWord` is supplied (and non-empty after cleanup), every
+ * returned combination begins with that word, includes it exactly once,
+ * and uses up to `maxWords-1` additional dictionary words. A combination
+ * containing only the required word is returned iff the required word
+ * fully consumes the input.
+ *
+ * Returns `[]` if the input is empty, contains the wildcard character,
+ * contains any non-Hebrew character after cleanup, exceeds the input-length
+ * cap, or has a required word that is non-Hebrew or not a subset of the
+ * input. Hard-capped at `maxResults` to bound the worst case.
  */
 export function findMultiWordAnagrams(
   input: string,
@@ -97,57 +183,53 @@ export function findMultiWordAnagrams(
     minLength = MULTI_WORD_DEFAULT_MIN_LENGTH,
     wildcard = MULTI_WORD_DEFAULT_WILDCARD,
     maxInputLetters = MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS,
+    requiredWord = "",
   } = options;
 
   if (input.includes(wildcard)) return [];
 
-  const cleanInput = removeNiqqud(input).replace(/\s+/g, "");
+  const cleanInput = clean(input);
   if (cleanInput.length === 0) return [];
   if (cleanInput.length > maxInputLetters) return [];
   if (!isHebrewOnly(cleanInput)) return [];
 
   const inputCounts = toCounts(cleanInput);
 
-  // Keep only words whose multiset is a subset of the input — anything else
-  // can never appear in a valid combination, regardless of depth.
-  type Candidate = { word: string; counts: Counts };
-  const candidates: Candidate[] = [];
+  // Build the candidate list once — anything not a subset of the input can
+  // never appear in any valid combination.
+  const allCandidates: Candidate[] = [];
   for (const w of words) {
     if (w.length < minLength) continue;
     const wc = toCounts(w);
     if (!isCountsSubset(wc, inputCounts)) continue;
-    candidates.push({ word: w, counts: wc });
+    allCandidates.push({ word: w, counts: wc });
   }
 
   const cap = Math.max(0, maxResults);
-  const lo = Math.max(1, minWords);
-  const hi = Math.min(MULTI_WORD_DEFAULT_MAX_WORDS, Math.max(lo, maxWords));
+  const hi = Math.min(MULTI_WORD_DEFAULT_MAX_WORDS, Math.max(1, maxWords));
 
-  const results: MultiWordResult[] = [];
-  const chosen: string[] = [];
+  const cleanRequired = clean(requiredWord);
 
-  // Returns true once the result cap is reached, signalling unwind.
-  function search(remaining: Counts, startIdx: number): boolean {
-    if (results.length >= cap) return true;
-
-    if (chosen.length >= lo && remaining.size === 0) {
-      results.push({ words: chosen.slice() });
-      return results.length >= cap;
-    }
-
-    if (chosen.length >= hi) return false;
-
-    for (let i = startIdx; i < candidates.length; i++) {
-      const c = candidates[i];
-      if (!isCountsSubset(c.counts, remaining)) continue;
-      chosen.push(c.word);
-      const stop = search(subtractCounts(remaining, c.counts), i);
-      chosen.pop();
-      if (stop) return true;
-    }
-    return false;
+  if (cleanRequired === "") {
+    const lo = Math.max(1, minWords);
+    return runSearch(inputCounts, allCandidates, [], lo, hi, cap);
   }
 
-  if (cap > 0) search(inputCounts, 0);
-  return results;
+  // Fixed-word path.
+  if (!isHebrewOnly(cleanRequired)) return [];
+  const requiredCounts = toCounts(cleanRequired);
+  if (!isCountsSubset(requiredCounts, inputCounts)) return [];
+
+  const remaining = subtractCounts(inputCounts, requiredCounts);
+
+  // Exclude the required word itself from the candidates so it appears
+  // exactly once in each result. (Comparison is on the already-cleaned form;
+  // the candidate words come from `words`, which the caller has preprocessed
+  // through the same niqqud-strip + final-letter pipeline.)
+  const additional = allCandidates.filter((c) => c.word !== cleanRequired);
+
+  // Use loDepth=1 so a required word that *fully* consumes the input is
+  // returned as a single-word combination. Otherwise the search will only
+  // succeed at chosen.length ≥ 2 (i.e., required word + ≥1 extra word).
+  return runSearch(remaining, additional, [cleanRequired], 1, hi, cap);
 }

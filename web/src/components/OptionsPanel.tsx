@@ -1,5 +1,5 @@
 export type SortOrder = "longest" | "shortest" | "dict";
-export type SearchMode = "single" | "multi";
+export type SearchMode = "single" | "multi" | "crossword";
 
 export interface OptionsState {
   minLength: number;
@@ -16,32 +16,43 @@ interface OptionsPanelProps {
 
 const MIN_LENGTH_CHOICES = [2, 3, 4, 5, 6] as const;
 
+const MODE_LABELS: Record<SearchMode, string> = {
+  single: "מילים בודדות",
+  multi: "אנגרמות מרובות מילים",
+  crossword: "תבנית תשבץ",
+};
+
 export function OptionsPanel({ options, onChange, disabled }: OptionsPanelProps) {
-  const isMulti = options.mode === "multi";
+  // Sort + min-length controls only matter for the single-word mode. Multi
+  // mode has its own pipeline; crossword mode has fixed-length, position-
+  // based matching.
+  const showSingleControls = options.mode === "single";
+
   return (
     <section className="options" aria-label="אפשרויות חיפוש">
-      <div className="options__row options__row--mode" role="radiogroup" aria-label="מצב חיפוש">
-        <button
-          type="button"
-          className={`options__mode${isMulti ? "" : " options__mode--active"}`}
-          onClick={() => onChange({ ...options, mode: "single" })}
-          aria-pressed={!isMulti}
-          disabled={disabled}
-        >
-          מילים בודדות
-        </button>
-        <button
-          type="button"
-          className={`options__mode${isMulti ? " options__mode--active" : ""}`}
-          onClick={() => onChange({ ...options, mode: "multi" })}
-          aria-pressed={isMulti}
-          disabled={disabled}
-        >
-          אנגרמות מרובות מילים
-        </button>
+      <div
+        className="options__row options__row--mode"
+        role="radiogroup"
+        aria-label="מצב חיפוש"
+      >
+        {(Object.keys(MODE_LABELS) as SearchMode[]).map((m) => {
+          const active = options.mode === m;
+          return (
+            <button
+              key={m}
+              type="button"
+              className={`options__mode${active ? " options__mode--active" : ""}`}
+              onClick={() => onChange({ ...options, mode: m })}
+              aria-pressed={active}
+              disabled={disabled}
+            >
+              {MODE_LABELS[m]}
+            </button>
+          );
+        })}
       </div>
 
-      {!isMulti && (
+      {showSingleControls && (
         <>
           <div className="options__row">
             <label className="options__label" htmlFor="min-length">

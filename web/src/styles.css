@@ -366,6 +366,102 @@ kbd {
   cursor: not-allowed;
 }
 
+/* ----- Fixed-word field (multi mode only) ----- */
+
+.fixed-word {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fixed-word__label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+.fixed-word__optional {
+  color: var(--ink-muted);
+  font-weight: 400;
+  font-size: 0.88rem;
+  margin-inline-start: var(--space-1);
+}
+
+.fixed-word__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.fixed-word__input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.fixed-word__input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 1.15rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+}
+
+.fixed-word__input--invalid:not(:placeholder-shown) {
+  /* Subtle red wash so the field reads as invalid without screaming. */
+  background: rgba(185, 28, 28, 0.06);
+}
+
+.fixed-word__input:disabled {
+  opacity: 0.55;
+}
+
+.fixed-word__input::placeholder {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.fixed-word__clear {
+  align-self: center;
+  margin-inline-end: var(--space-3);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.fixed-word__clear:hover,
+.fixed-word__clear:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent);
+  outline: none;
+}
+
+.fixed-word__hint {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--ink-muted);
+}
+
+.fixed-word__hint--error {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 /* ----- Mode explainer ----- */
 
 .mode-explainer {
