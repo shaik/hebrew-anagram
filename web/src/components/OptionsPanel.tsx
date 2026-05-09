@@ -1,3 +1,16 @@
+import {
+  MIN_LENGTH_LABEL,
+  MODE_GROUP_ARIA,
+  MODE_LABELS,
+  NORMALIZE_FINALS_LABEL,
+  OPTIONS_ARIA,
+  SORT_DICT,
+  SORT_LABEL,
+  SORT_LONGEST,
+  SORT_SHORTEST,
+  minLengthOption,
+} from "../strings";
+
 export type SortOrder = "longest" | "shortest" | "dict";
 export type SearchMode = "single" | "multi" | "crossword";
 
@@ -16,12 +29,6 @@ interface OptionsPanelProps {
 
 const MIN_LENGTH_CHOICES = [2, 3, 4, 5, 6] as const;
 
-const MODE_LABELS: Record<SearchMode, string> = {
-  single: "מילים בודדות",
-  multi: "אנגרמות מרובות מילים",
-  crossword: "תבנית תשבץ",
-};
-
 export function OptionsPanel({ options, onChange, disabled }: OptionsPanelProps) {
   // Sort + min-length controls only matter for the single-word mode. Multi
   // mode has its own pipeline; crossword mode has fixed-length, position-
@@ -29,11 +36,11 @@ export function OptionsPanel({ options, onChange, disabled }: OptionsPanelProps)
   const showSingleControls = options.mode === "single";
 
   return (
-    <section className="options" aria-label="אפשרויות חיפוש">
+    <section className="options" aria-label={OPTIONS_ARIA}>
       <div
         className="options__row options__row--mode"
         role="radiogroup"
-        aria-label="מצב חיפוש"
+        aria-label={MODE_GROUP_ARIA}
       >
         {(Object.keys(MODE_LABELS) as SearchMode[]).map((m) => {
           const active = options.mode === m;
@@ -56,7 +63,7 @@ export function OptionsPanel({ options, onChange, disabled }: OptionsPanelProps)
         <>
           <div className="options__row">
             <label className="options__label" htmlFor="min-length">
-              אורך מינימלי
+              {MIN_LENGTH_LABEL}
             </label>
             <select
               id="min-length"
@@ -67,7 +74,7 @@ export function OptionsPanel({ options, onChange, disabled }: OptionsPanelProps)
             >
               {MIN_LENGTH_CHOICES.map((n) => (
                 <option key={n} value={n}>
-                  {n} אותיות ומעלה
+                  {minLengthOption(n)}
                 </option>
               ))}
             </select>
@@ -75,7 +82,7 @@ export function OptionsPanel({ options, onChange, disabled }: OptionsPanelProps)
 
           <div className="options__row">
             <label className="options__label" htmlFor="sort">
-              מיון
+              {SORT_LABEL}
             </label>
             <select
               id="sort"
@@ -84,9 +91,9 @@ export function OptionsPanel({ options, onChange, disabled }: OptionsPanelProps)
               onChange={(e) => onChange({ ...options, sort: e.target.value as SortOrder })}
               disabled={disabled}
             >
-              <option value="longest">ארוכות תחילה</option>
-              <option value="shortest">קצרות תחילה</option>
-              <option value="dict">סדר המילון</option>
+              <option value="longest">{SORT_LONGEST}</option>
+              <option value="shortest">{SORT_SHORTEST}</option>
+              <option value="dict">{SORT_DICT}</option>
             </select>
           </div>
         </>
@@ -94,7 +101,7 @@ export function OptionsPanel({ options, onChange, disabled }: OptionsPanelProps)
 
       <div className="options__row options__row--toggle">
         <label className="options__label" htmlFor="normalize-finals">
-          התעלם מצורות סופיות (ך/כ, ם/מ ...)
+          {NORMALIZE_FINALS_LABEL}
         </label>
         <input
           id="normalize-finals"

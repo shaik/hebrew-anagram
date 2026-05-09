@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SearchForm } from "./components/SearchForm";
 import {
   OptionsPanel,
   type OptionsState,
-  type SearchMode,
 } from "./components/OptionsPanel";
 import { ResultsList } from "./components/ResultsList";
 import { MultiResultsList } from "./components/MultiResultsList";
@@ -27,12 +26,28 @@ import {
   PATTERN_DEFAULT_MAX_RESULTS,
 } from "./lib/patternSearch";
 import { scoreWord } from "./lib/scoring";
+import {
+  APP_FOOTER,
+  APP_TAGLINE,
+  APP_TITLE,
+  APP_VERSION,
+  CROSSWORD_MODE_EXPLAINER,
+  cappedNote,
+  FIXED_WORD_INVALID,
+  MULTI_RESULTS_LABEL,
+  MULTI_WILDCARD_DISABLED_MSG,
+  multiInputTooLongMsg,
+  multiModeExplainer,
+  PATTERN_RESULTS_LABEL,
+  pluralize,
+  SEARCH_FORM_COPY,
+  shownNote,
+  SINGLE_RESULTS_LABEL,
+} from "./strings";
 
 const DICT_URL = `${import.meta.env.BASE_URL}hebrew_dict.txt`;
 const MAX_DISPLAYED = 500;
 const WILDCARD = "?";
-const FIXED_WORD_INVALID_MSG =
-  "המילה הקבועה אינה מורכבת מהאותיות שהוזנו";
 
 // Default normalizeFinals=true because the bundled hebrew_dict.txt uses base
 // forms (מ, נ, …) instead of final forms (ם, ן, …) at word ends. With the
@@ -51,34 +66,6 @@ type DictState =
   | { status: "loading" }
   | { status: "ready"; raw: string }
   | { status: "error"; message: string };
-
-interface SearchFormCopy {
-  label: string;
-  placeholder: string;
-  hint: ReactNode;
-}
-
-const SEARCH_FORM_COPY: Record<SearchMode, SearchFormCopy> = {
-  single: {
-    label: "האותיות שלך",
-    placeholder: "למשל: שלום? בית",
-    hint: (
-      <>
-        רווחים מתעלמים. השתמשו ב־<kbd>?</kbd> כג׳וקר לאות אחת כלשהי.
-      </>
-    ),
-  },
-  multi: {
-    label: "האותיות שלך",
-    placeholder: "למשל: שי כפיר",
-    hint: <>רווחים מתעלמים. ג׳וקר אינו נתמך במצב זה.</>,
-  },
-  crossword: {
-    label: "תבנית",
-    placeholder: "למשל: ??גד? או ?א??ב??צ",
-    hint: <>הקלידו אותיות ידועות וכל סימן אחר כתו חופשי.</>,
-  },
-};
 
 function sortResults(words: readonly string[], order: OptionsState["sort"]): string[] {
   if (order === "dict") return [...words];
@@ -279,19 +266,12 @@ export default function App() {
     body = <EmptyState variant="idle" />;
   } else if (searchState.kind === "multi") {
     if (searchState.wildcardDisabled) {
-      body = (
-        <EmptyState
-          variant="no-results"
-          message={
-            "אנגרמות מרובות מילים אינן תומכות בג'וקר (?). הסירו את הסימן, או חזרו למצב מילים בודדות."
-          }
-        />
-      );
+      body = <EmptyState variant="no-results" message={MULTI_WILDCARD_DISABLED_MSG} />;
     } else if (searchState.inputTooLong) {
       body = (
         <EmptyState
           variant="no-results"
-          message={`קלט ארוך מדי לחיפוש מהיר. נסו עד ${MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS} אותיות (לאחר התעלמות מרווחים), או עברו למצב מילים בודדות.`}
+          message={multiInputTooLongMsg(MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS)}
         />
       );
     } else if (searchState.fixedInvalid) {
@@ -344,8 +324,8 @@ export default function App() {
   return (
     <div className="app">
       <header className="app__header">
-        <h1 className="app__title">אנגרמות בעברית</h1>
-        <p className="app__tagline">חיפוש מילים מהאותיות שלך — רץ בדפדפן, ללא שרת.</p>
+        <h1 className="app__title">{APP_TITLE}</h1>
+        <p className="app__tagline">{APP_TAGLINE}</p>
       </header>
 
       <main className="app__main">
@@ -364,28 +344,23 @@ export default function App() {
             value={fixedWord}
             onChange={setFixedWord}
             disabled={!dictReady}
-            errorMessage={fixedWordValid ? undefined : FIXED_WORD_INVALID_MSG}
+            errorMessage={fixedWordValid ? undefined : FIXED_WORD_INVALID}
           />
         )}
         {options.mode === "multi" && (
-          <p className="mode-explainer">
-            צירופים שמשתמשים בכל האותיות שלך <strong>בדיוק</strong>. רווחים
-            מתעלמים. עד {MULTI_WORD_DEFAULT_MAX_RESULTS.toLocaleString("he-IL")}{" "}
-            תוצאות.
-          </p>
+          <p className="mode-explainer">{multiModeExplainer(MULTI_WORD_DEFAULT_MAX_RESULTS)}</p>
         )}
         {options.mode === "crossword" && (
-          <p className="mode-explainer">
-            <strong>תבנית תשבץ:</strong> אותיות עבריות הן מיקומים קבועים, וכל
-            תו אחר (ספרה, סימן פיסוק וכו׳) הוא תו חופשי. אורך המילה חייב להיות
-            זהה לאורך התבנית.
-          </p>
+          <p className="mode-explainer">{CROSSWORD_MODE_EXPLAINER}</p>
         )}
         {body}
       </main>
 
       <footer className="app__footer">
-        <span>POC לאימות workflow רב־סוכני · המילון נטען רק בדפדפן · קוד פתוח</span>
+        <span>{APP_FOOTER}</span>
+        <span className="app__version" aria-label={`גרסה ${APP_VERSION}`}>
+          v{APP_VERSION}
+        </span>
       </footer>
     </div>
   );
@@ -396,12 +371,9 @@ function ResultsHeader({ total, shown }: { total: number; shown: number }) {
   return (
     <div className="results-header" aria-live="polite">
       <strong>{total.toLocaleString("he-IL")}</strong>{" "}
-      {total === 1 ? "מילה תואמת" : "מילים תואמות"}
+      {pluralize(total, SINGLE_RESULTS_LABEL)}
       {truncated && (
-        <span className="results-header__note">
-          {" "}
-          (מוצגות {shown.toLocaleString("he-IL")} ראשונות)
-        </span>
+        <span className="results-header__note"> {shownNote(shown)}</span>
       )}
     </div>
   );
@@ -412,9 +384,9 @@ function MultiResultsHeader({ count, cap }: { count: number; cap: number }) {
   return (
     <div className="results-header" aria-live="polite">
       <strong>{count.toLocaleString("he-IL")}</strong>{" "}
-      {count === 1 ? "צירוף" : "צירופים"}
+      {pluralize(count, MULTI_RESULTS_LABEL)}
       {capped && (
-        <span className="results-header__note"> (הוגבל ל־{cap.toLocaleString("he-IL")})</span>
+        <span className="results-header__note"> {cappedNote(cap)}</span>
       )}
     </div>
   );
@@ -425,9 +397,9 @@ function PatternResultsHeader({ count, cap }: { count: number; cap: number }) {
   return (
     <div className="results-header" aria-live="polite">
       <strong>{count.toLocaleString("he-IL")}</strong>{" "}
-      {count === 1 ? "מילה תואמת לתבנית" : "מילים תואמות לתבנית"}
+      {pluralize(count, PATTERN_RESULTS_LABEL)}
       {capped && (
-        <span className="results-header__note"> (הוגבל ל־{cap.toLocaleString("he-IL")})</span>
+        <span className="results-header__note"> {cappedNote(cap)}</span>
       )}
     </div>
   );

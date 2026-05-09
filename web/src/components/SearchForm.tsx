@@ -1,35 +1,30 @@
 import type { ReactNode } from "react";
+import { SEARCH_FORM_CLEAR_ARIA, SEARCH_FORM_COPY } from "../strings";
 
 interface SearchFormProps {
   value: string;
   onChange: (next: string) => void;
   onClear: () => void;
   disabled?: boolean;
-  /** Field label (default: "האותיות שלך"). */
+  /** Field label. Defaults to single-word mode copy from strings.tsx. */
   label?: string;
-  /** Input placeholder (default: anagram example). */
+  /** Input placeholder. Defaults to single-word mode copy from strings.tsx. */
   placeholder?: string;
   /** Helper text under the input. May be a string or React fragment. */
   hint?: ReactNode;
-  /** ARIA label for the clear button (default: "נקה את שדה האותיות"). */
+  /** ARIA label for the clear button (default from strings.tsx). */
   clearAriaLabel?: string;
 }
-
-const DEFAULT_HINT = (
-  <>
-    רווחים מתעלמים. השתמשו ב־<kbd>?</kbd> כג׳וקר לאות אחת כלשהי.
-  </>
-);
 
 export function SearchForm({
   value,
   onChange,
   onClear,
   disabled,
-  label = "האותיות שלך",
-  placeholder = "למשל: שלום? בית",
-  hint = DEFAULT_HINT,
-  clearAriaLabel = "נקה את שדה האותיות",
+  label = SEARCH_FORM_COPY.single.label,
+  placeholder = SEARCH_FORM_COPY.single.placeholder,
+  hint = SEARCH_FORM_COPY.single.hint,
+  clearAriaLabel = SEARCH_FORM_CLEAR_ARIA,
 }: SearchFormProps) {
   return (
     <section className="search">

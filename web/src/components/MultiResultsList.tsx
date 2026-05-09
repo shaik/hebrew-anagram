@@ -1,5 +1,6 @@
 import { restoreFinalLettersForDisplay } from "../lib/hebrew";
 import type { MultiWordResult } from "../lib/multiwordAnagrams";
+import { MULTI_RESULTS_LIST_ARIA, wordCountAriaLabel } from "../strings";
 
 interface MultiResultsListProps {
   combos: readonly MultiWordResult[];
@@ -7,7 +8,7 @@ interface MultiResultsListProps {
 
 export function MultiResultsList({ combos }: MultiResultsListProps) {
   return (
-    <ul className="multi-results-list" aria-label="צירופי אנגרמות מרובות מילים">
+    <ul className="multi-results-list" aria-label={MULTI_RESULTS_LIST_ARIA}>
       {combos.map((c, idx) => {
         const display = c.words.map(restoreFinalLettersForDisplay);
         const phrase = display.join(" ");
@@ -22,7 +23,7 @@ export function MultiResultsList({ combos }: MultiResultsListProps) {
             </span>
             <span
               className="multi-result-card__meta"
-              aria-label={`${wordCount} מילים`}
+              aria-label={wordCountAriaLabel(wordCount)}
             >
               {wordCount}
             </span>

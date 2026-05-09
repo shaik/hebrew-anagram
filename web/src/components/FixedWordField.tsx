@@ -1,3 +1,11 @@
+import {
+  FIXED_WORD_CLEAR_ARIA,
+  FIXED_WORD_HINT,
+  FIXED_WORD_LABEL,
+  FIXED_WORD_OPTIONAL,
+  FIXED_WORD_PLACEHOLDER,
+} from "../strings";
+
 interface FixedWordFieldProps {
   value: string;
   onChange: (next: string) => void;
@@ -16,7 +24,8 @@ export function FixedWordField({
   return (
     <section className="fixed-word">
       <label htmlFor="fixed-word" className="fixed-word__label">
-        מילה קבועה <span className="fixed-word__optional">(לא חובה)</span>
+        {FIXED_WORD_LABEL}{" "}
+        <span className="fixed-word__optional">{FIXED_WORD_OPTIONAL}</span>
       </label>
       <div className="fixed-word__input-wrap">
         <input
@@ -30,7 +39,7 @@ export function FixedWordField({
           spellCheck={false}
           dir="rtl"
           lang="he"
-          placeholder="למשל: קר"
+          placeholder={FIXED_WORD_PLACEHOLDER}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
@@ -42,7 +51,7 @@ export function FixedWordField({
             type="button"
             className="fixed-word__clear"
             onClick={() => onChange("")}
-            aria-label="נקה את המילה הקבועה"
+            aria-label={FIXED_WORD_CLEAR_ARIA}
             disabled={disabled}
           >
             ×
@@ -54,7 +63,7 @@ export function FixedWordField({
         className={`fixed-word__hint${hasError ? " fixed-word__hint--error" : ""}`}
         role={hasError ? "alert" : undefined}
       >
-        {hasError ? errorMessage : "יוצגו רק אנגרמות שמכילות את המילה הזו."}
+        {hasError ? errorMessage : FIXED_WORD_HINT}
       </p>
     </section>
   );
