@@ -27,7 +27,7 @@ export const APP_FOOTER =
   "עוד מוצר מטריפ מבית היוצר של שי כפיר ועוזריהם. ללא חשש טבל ושביעית";
 
 // Bump by 0.01 on every code change. Rendered in the footer.
-export const APP_VERSION = "1.07";
+export const APP_VERSION = "1.08";
 
 // ----- Mode toggle ---------------------------------------------------------
 
@@ -74,8 +74,7 @@ export const SEARCH_FORM_CLEAR_ARIA = "נקה את האותיות";
 export function multiModeExplainer(maxResults: number): ReactNode {
   return (
     <>
-      צירופים שמשתמשים בכל האותיות שלך <strong>בדיוק</strong>. רווחים
-      מתעלמים. עד {maxResults.toLocaleString("he-IL")} תוצאות.
+      צירופים שמשתמשים בכל האותיות שלך <strong>בדיוק</strong>. עד {maxResults.toLocaleString("he-IL")} תוצאות.
     </>
   );
 }

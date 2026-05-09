@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isHebrewOnly,
+  keepHebrewLetters,
   normalizeFinalLetters,
   normalizeText,
   removeNiqqud,
@@ -121,6 +122,49 @@ describe("restoreFinalLettersForDisplay", () => {
     // The niqqud comes *after* the consonant in Unicode order, so the mem is
     // followed by U+05B9, not by another letter.
     expect(restoreFinalLettersForDisplay("מֹ")).toBe("םֹ");
+  });
+});
+
+describe("keepHebrewLetters", () => {
+  it("returns pure-Hebrew text unchanged", () => {
+    expect(keepHebrewLetters("שלום")).toBe("שלום");
+    expect(keepHebrewLetters("שלום עולם")).toBe("שלוםעולם");
+  });
+
+  it("strips ASCII letters, digits, and punctuation", () => {
+    expect(keepHebrewLetters("שלום, world!")).toBe("שלום");
+    expect(keepHebrewLetters("שלום123-בית")).toBe("שלוםבית");
+  });
+
+  it("strips whitespace (space, tab, newline)", () => {
+    expect(keepHebrewLetters("ש ל\tו\nם")).toBe("שלום");
+  });
+
+  it("strips niqqud and Hebrew punctuation that are not letters", () => {
+    // שָׁלוֹם has niqqud → only the 4 letters survive.
+    expect(keepHebrewLetters("שָׁלוֹם")).toBe("שלום");
+    // Maqaf (U+05BE) and Geresh (U+05F3) are Hebrew block but not letters.
+    expect(keepHebrewLetters("ספר־תורה")).toBe("ספרתורה");
+    expect(keepHebrewLetters("צ׳יפס")).toBe("ציפס"); // Geresh dropped, the 4 Hebrew letters remain
+  });
+
+  it("preserves Hebrew final-form letters (they're in the letter range)", () => {
+    expect(keepHebrewLetters("שלום, מלך")).toBe("שלוםמלך");
+  });
+
+  it("preserves the characters listed in alsoKeep", () => {
+    expect(keepHebrewLetters("של?ום בית", "?")).toBe("של?וםבית");
+    expect(keepHebrewLetters("a*b*c*ש*ל", "*")).toBe("***ש*ל");
+  });
+
+  it("handles empty string", () => {
+    expect(keepHebrewLetters("")).toBe("");
+    expect(keepHebrewLetters("", "?")).toBe("");
+  });
+
+  it("returns empty when input has no Hebrew letters and nothing to also-keep", () => {
+    expect(keepHebrewLetters("hello, world!")).toBe("");
+    expect(keepHebrewLetters("12345")).toBe("");
   });
 });
 

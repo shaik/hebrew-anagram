@@ -83,6 +83,31 @@ function isHebrewLetter(ch: string | undefined): boolean {
 }
 
 /**
+ * Strip every character that is not a Hebrew letter (U+05D0–U+05EA),
+ * optionally preserving any character listed in `alsoKeep`. Use this to
+ * sanitize raw user input before searching: spaces, commas, dashes, ASCII,
+ * digits, niqqud, and Hebrew punctuation (Maqaf, Geresh, …) are all dropped.
+ *
+ * Examples:
+ *   keepHebrewLetters("שלום, בית")       // "שלוםבית"
+ *   keepHebrewLetters("של?ום", "?")      // "של?ום"  (preserves the wildcard)
+ *   keepHebrewLetters("שָׁלוֹם!")           // "שלום"   (niqqud + punctuation gone)
+ */
+export function keepHebrewLetters(text: string, alsoKeep = ""): string {
+  let out = "";
+  for (const ch of text) {
+    const cp = ch.codePointAt(0)!;
+    if (
+      (cp >= HEBREW_LETTER_START && cp <= HEBREW_LETTER_END) ||
+      alsoKeep.includes(ch)
+    ) {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+/**
  * Restore final-form Hebrew letters at end-of-word positions for display.
  *
  * Internal matching may collapse final letters (ם→מ etc.) to make the bundled

@@ -10,8 +10,8 @@ import { FixedWordField } from "./components/FixedWordField";
 import { EmptyState } from "./components/EmptyState";
 import { findMatchingWords, preprocessWordList } from "./lib/dictionary";
 import {
+  keepHebrewLetters,
   normalizeFinalLetters,
-  removeNiqqud,
   restoreFinalLettersForDisplay,
 } from "./lib/hebrew";
 import {
@@ -59,7 +59,7 @@ const DEFAULT_OPTIONS: OptionsState = {
   minLength: 2,
   normalizeFinals: true,
   sort: "longest",
-  mode: "single",
+  mode: "multi",
 };
 
 type DictState =
@@ -117,20 +117,35 @@ export default function App() {
   const trimmedRack = rack.trim();
   const trimmedFixed = fixedWord.trim();
 
+  // Sanitize rack/fixed for the anagram modes: drop everything that isn't a
+  // Hebrew letter so users can paste loosely (spaces, commas, dashes, ASCII,
+  // niqqud, etc. all silently disappear). Single mode preserves `?` as the
+  // wildcard. Crossword mode is left untouched — non-Hebrew chars are its
+  // wildcards by design.
+  const sanitizedRack =
+    options.mode === "crossword"
+      ? trimmedRack
+      : options.mode === "single"
+        ? keepHebrewLetters(trimmedRack, WILDCARD)
+        : keepHebrewLetters(trimmedRack);
+  const sanitizedFixed = keepHebrewLetters(trimmedFixed);
+
   // Decide whether the multi-mode "fixed word" is valid for the current
   // rack. Empty fixed → no constraint (valid). Non-empty fixed must be a
   // subset of the rack's letter multiset.
   const fixedWordValid = useMemo(() => {
     if (options.mode !== "multi") return true;
-    if (trimmedFixed === "" || trimmedRack === "") return true;
+    // Compare on the SANITIZED forms so that stray punctuation in the user's
+    // typing doesn't trigger spurious "not a subset" errors.
+    if (sanitizedFixed === "" || sanitizedRack === "") return true;
     const rackForCheck = options.normalizeFinals
-      ? normalizeFinalLetters(trimmedRack)
-      : trimmedRack;
+      ? normalizeFinalLetters(sanitizedRack)
+      : sanitizedRack;
     const fixedForCheck = options.normalizeFinals
-      ? normalizeFinalLetters(trimmedFixed)
-      : trimmedFixed;
+      ? normalizeFinalLetters(sanitizedFixed)
+      : sanitizedFixed;
     return isRequiredWordSatisfiable(fixedForCheck, rackForCheck);
-  }, [options.mode, options.normalizeFinals, trimmedFixed, trimmedRack]);
+  }, [options.mode, options.normalizeFinals, sanitizedFixed, sanitizedRack]);
 
   type SearchState =
     | { kind: "empty" }
@@ -156,14 +171,14 @@ export default function App() {
     if (!preprocessed) return { kind: "empty" };
 
     // Crossword mode is driven entirely by the rack input as the pattern.
+    // We use the raw (non-sanitized) rack here because non-Hebrew characters
+    // ARE the wildcard in this mode.
     if (options.mode === "crossword") {
-      // Strip whitespace so we can decide "empty" deterministically; the
-      // pattern function does the same internally.
-      const cleanedPattern = removeNiqqud(trimmedRack).replace(/\s+/g, "");
-      if (cleanedPattern.length === 0) return { kind: "empty" };
+      if (trimmedRack === "") return { kind: "empty" };
       const matched = findWordsByPattern(trimmedRack, preprocessed, {
         normalizeFinals: options.normalizeFinals,
       });
+      if (matched.length === 0 && trimmedRack.length === 0) return { kind: "empty" };
       const display = matched.map((word) => ({
         word: restoreFinalLettersForDisplay(word),
         score: scoreWord(word),
@@ -171,20 +186,12 @@ export default function App() {
       return { kind: "crossword", results: display, totalMatches: matched.length };
     }
 
-    if (trimmedRack === "") return { kind: "empty" };
+    // For single + multi modes, the search runs against the sanitized rack
+    // (Hebrew letters only, plus `?` in single mode for wildcard support).
+    if (sanitizedRack === "") return { kind: "empty" };
 
     if (options.mode === "multi") {
-      if (trimmedRack.includes(WILDCARD)) {
-        return {
-          kind: "multi",
-          combos: [],
-          wildcardDisabled: true,
-          inputTooLong: false,
-          fixedInvalid: false,
-        };
-      }
-      const cleanLetters = removeNiqqud(trimmedRack).replace(/\s+/g, "").length;
-      if (cleanLetters > MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS) {
+      if (sanitizedRack.length > MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS) {
         return {
           kind: "multi",
           combos: [],
@@ -193,17 +200,15 @@ export default function App() {
           fixedInvalid: false,
         };
       }
-      // If a non-empty fixed word is invalid for the rack, surface that
-      // explicitly with no combos. Empty fixed word means no constraint.
       const effectiveRack = options.normalizeFinals
-        ? normalizeFinalLetters(trimmedRack)
-        : trimmedRack;
+        ? normalizeFinalLetters(sanitizedRack)
+        : sanitizedRack;
       const effectiveFixed =
-        trimmedFixed === ""
+        sanitizedFixed === ""
           ? ""
           : options.normalizeFinals
-            ? normalizeFinalLetters(trimmedFixed)
-            : trimmedFixed;
+            ? normalizeFinalLetters(sanitizedFixed)
+            : sanitizedFixed;
       if (effectiveFixed !== "" && !isRequiredWordSatisfiable(effectiveFixed, effectiveRack)) {
         return {
           kind: "multi",
@@ -227,8 +232,8 @@ export default function App() {
 
     // Single-word mode.
     const effectiveRack = options.normalizeFinals
-      ? normalizeFinalLetters(trimmedRack)
-      : trimmedRack;
+      ? normalizeFinalLetters(sanitizedRack)
+      : sanitizedRack;
     const matched = findMatchingWords(effectiveRack, preprocessed).filter(
       (w) => w.length >= options.minLength,
     );
@@ -241,7 +246,8 @@ export default function App() {
   }, [
     preprocessed,
     trimmedRack,
-    trimmedFixed,
+    sanitizedRack,
+    sanitizedFixed,
     options.mode,
     options.minLength,
     options.normalizeFinals,
