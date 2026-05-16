@@ -280,6 +280,16 @@ kbd {
   font-size: 1rem;
   color: var(--ink-soft);
   padding: 0 var(--space-1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.results-header__text {
+  flex: 1;
+  min-width: 0;
 }
 
 .results-header strong {
@@ -290,6 +300,53 @@ kbd {
 .results-header__note {
   color: var(--ink-muted);
   font-size: 0.86rem;
+}
+
+/* ----- Share button ----- */
+
+.share-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease,
+    transform 120ms ease;
+  white-space: nowrap;
+}
+
+.share-button:hover,
+.share-button:focus-visible {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.share-button:active {
+  transform: translateY(1px);
+}
+
+.share-button--feedback {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.share-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.share-button__icon svg {
+  display: block;
 }
 
 .results-list {

@@ -10,6 +10,12 @@ import { FixedWordField } from "./components/FixedWordField";
 import { EmptyState } from "./components/EmptyState";
 import { findMatchingWords, preprocessWordList } from "./lib/dictionary";
 import {
+  buildShareUrl,
+  decodeQueryToState,
+  encodeStateToQuery,
+} from "./lib/urlState";
+import { ShareButton } from "./components/ShareButton";
+import {
   keepHebrewLetters,
   normalizeFinalLetters,
   restoreFinalLettersForDisplay,
@@ -76,11 +82,35 @@ function sortResults(words: readonly string[], order: OptionsState["sort"]): str
   return copy;
 }
 
+// Read initial state from window.location.search exactly once, at module-eval
+// time before React first renders. Lives outside the component so the read
+// happens before any state machinery and we can pass real initial values to
+// useState — avoiding a one-frame flash of defaults.
+const INITIAL_FROM_URL =
+  typeof window !== "undefined"
+    ? decodeQueryToState(window.location.search)
+    : { rack: "", fixedWord: "", options: DEFAULT_OPTIONS };
+
 export default function App() {
-  const [rack, setRack] = useState("");
-  const [fixedWord, setFixedWord] = useState("");
-  const [options, setOptions] = useState<OptionsState>(DEFAULT_OPTIONS);
+  const [rack, setRack] = useState(INITIAL_FROM_URL.rack);
+  const [fixedWord, setFixedWord] = useState(INITIAL_FROM_URL.fixedWord);
+  const [options, setOptions] = useState<OptionsState>(INITIAL_FROM_URL.options);
   const [dictState, setDictState] = useState<DictState>({ status: "loading" });
+
+  // Mirror state into the URL whenever it changes. `replaceState` so we don't
+  // pollute history with a new entry per keystroke — the user gets one
+  // back-button press to leave the app, not 50.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const query = encodeStateToQuery({ rack, fixedWord, options });
+    const next = query
+      ? `${window.location.pathname}?${query}${window.location.hash}`
+      : `${window.location.pathname}${window.location.hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (next !== current) {
+      window.history.replaceState(null, "", next);
+    }
+  }, [rack, fixedWord, options]);
 
   useEffect(() => {
     let cancelled = false;
@@ -258,6 +288,13 @@ export default function App() {
   const showLoading = dictState.status === "loading";
   const showError = dictState.status === "error";
 
+  // Recomputed every render. Cheap (string concat); avoids stale closure
+  // problems and keeps the share button always in sync with what's shown.
+  const shareUrl =
+    typeof window !== "undefined"
+      ? buildShareUrl({ rack, fixedWord, options })
+      : "";
+
   let body;
   if (showLoading) {
     body = <EmptyState variant="loading" />;
@@ -292,6 +329,7 @@ export default function App() {
           <MultiResultsHeader
             count={searchState.combos.length}
             cap={MULTI_WORD_DEFAULT_MAX_RESULTS}
+            shareUrl={shareUrl}
           />
           <MultiResultsList combos={searchState.combos} />
         </>
@@ -306,6 +344,7 @@ export default function App() {
           <PatternResultsHeader
             count={searchState.totalMatches}
             cap={PATTERN_DEFAULT_MAX_RESULTS}
+            shareUrl={shareUrl}
           />
           <ResultsList results={searchState.results} />
         </>
@@ -319,6 +358,7 @@ export default function App() {
         <ResultsHeader
           total={searchState.totalMatches}
           shown={searchState.results.length}
+          shareUrl={shareUrl}
         />
         <ResultsList results={searchState.results} />
       </>
@@ -372,41 +412,74 @@ export default function App() {
   );
 }
 
-function ResultsHeader({ total, shown }: { total: number; shown: number }) {
+function ResultsHeader({
+  total,
+  shown,
+  shareUrl,
+}: {
+  total: number;
+  shown: number;
+  shareUrl: string;
+}) {
   const truncated = shown < total;
   return (
     <div className="results-header" aria-live="polite">
-      <strong>{total.toLocaleString("he-IL")}</strong>{" "}
-      {pluralize(total, SINGLE_RESULTS_LABEL)}
-      {truncated && (
-        <span className="results-header__note"> {shownNote(shown)}</span>
-      )}
+      <span className="results-header__text">
+        <strong>{total.toLocaleString("he-IL")}</strong>{" "}
+        {pluralize(total, SINGLE_RESULTS_LABEL)}
+        {truncated && (
+          <span className="results-header__note"> {shownNote(shown)}</span>
+        )}
+      </span>
+      <ShareButton url={shareUrl} />
     </div>
   );
 }
 
-function MultiResultsHeader({ count, cap }: { count: number; cap: number }) {
+function MultiResultsHeader({
+  count,
+  cap,
+  shareUrl,
+}: {
+  count: number;
+  cap: number;
+  shareUrl: string;
+}) {
   const capped = count >= cap;
   return (
     <div className="results-header" aria-live="polite">
-      <strong>{count.toLocaleString("he-IL")}</strong>{" "}
-      {pluralize(count, MULTI_RESULTS_LABEL)}
-      {capped && (
-        <span className="results-header__note"> {cappedNote(cap)}</span>
-      )}
+      <span className="results-header__text">
+        <strong>{count.toLocaleString("he-IL")}</strong>{" "}
+        {pluralize(count, MULTI_RESULTS_LABEL)}
+        {capped && (
+          <span className="results-header__note"> {cappedNote(cap)}</span>
+        )}
+      </span>
+      <ShareButton url={shareUrl} />
     </div>
   );
 }
 
-function PatternResultsHeader({ count, cap }: { count: number; cap: number }) {
+function PatternResultsHeader({
+  count,
+  cap,
+  shareUrl,
+}: {
+  count: number;
+  cap: number;
+  shareUrl: string;
+}) {
   const capped = count >= cap;
   return (
     <div className="results-header" aria-live="polite">
-      <strong>{count.toLocaleString("he-IL")}</strong>{" "}
-      {pluralize(count, PATTERN_RESULTS_LABEL)}
-      {capped && (
-        <span className="results-header__note"> {cappedNote(cap)}</span>
-      )}
+      <span className="results-header__text">
+        <strong>{count.toLocaleString("he-IL")}</strong>{" "}
+        {pluralize(count, PATTERN_RESULTS_LABEL)}
+        {capped && (
+          <span className="results-header__note"> {cappedNote(cap)}</span>
+        )}
+      </span>
+      <ShareButton url={shareUrl} />
     </div>
   );
 }

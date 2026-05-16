@@ -27,7 +27,7 @@ export const APP_FOOTER =
   "עוד מוצר מטריפ מבית היוצר של שי כפיר ועוזריהם. ללא חשש טבל ושביעית";
 
 // Bump by 0.01 on every code change. Rendered in the footer.
-export const APP_VERSION = "1.08";
+export const APP_VERSION = "1.09";
 
 // ----- Mode toggle ---------------------------------------------------------
 
@@ -199,3 +199,11 @@ export const MULTI_WILDCARD_DISABLED_MSG =
 export function multiInputTooLongMsg(maxLetters: number): string {
   return `קלט ארוך מדי לחיפוש מהיר. נסו עד ${maxLetters} אותיות (לאחר התעלמות מרווחים), או עברו למצב מילים בודדות.`;
 }
+
+// ----- Share button --------------------------------------------------------
+
+export const SHARE_BUTTON_LABEL = "שתפו";
+export const SHARE_BUTTON_ARIA = "שתפו קישור לתוצאות";
+export const SHARE_TITLE = "אנגרמות בעברית";
+export const SHARE_COPIED = "הקישור הועתק";
+export const SHARE_FAILED = "ההעתקה נכשלה";
