@@ -92,13 +92,35 @@ function typedArrangement(rack: string): PlacedTile[][] {
     .map((part) => [...part].map((ch) => ({ id: id++, char: ch })));
 }
 
-const INITIAL_RACK =
+const INITIAL_FROM_URL =
   typeof window !== "undefined"
-    ? decodeQueryToState(window.location.search).rack
-    : "";
+    ? decodeQueryToState(window.location.search)
+    : { rack: "", anagram: "" };
+
+/** True iff the two word lists contain the same words (order-insensitive). */
+function sameWordMultiset(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  return [...a].sort().join(" ") === [...b].sort().join(" ");
+}
+
+/**
+ * Permutation that maps `engineWords` onto the order of `wantedWords`
+ * (same multiset, possibly with duplicates).
+ */
+function permutationFor(
+  engineWords: readonly string[],
+  wantedWords: readonly string[],
+): number[] {
+  const used = new Set<number>();
+  return wantedWords.map((w) => {
+    const i = engineWords.findIndex((ew, idx) => ew === w && !used.has(idx));
+    used.add(i);
+    return i;
+  });
+}
 
 export default function App() {
-  const [rack, setRack] = useState(INITIAL_RACK);
+  const [rack, setRack] = useState(INITIAL_FROM_URL.rack);
   const [dictState, setDictState] = useState<DictState>({ status: "loading" });
   const [step, setStep] = useState(-1); // -1 = no combination revealed yet
   const [wordOrder, setWordOrder] = useState<number[] | null>(null);
@@ -107,6 +129,8 @@ export default function App() {
   const [shareCopied, setShareCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const copiedTimer = useRef<ReturnType<typeof setTimeout>>();
+  // An anagram carried by the opened link, applied once the dictionary loads.
+  const pendingAnagram = useRef(INITIAL_FROM_URL.anagram);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,16 +150,8 @@ export default function App() {
     };
   }, []);
 
-  // Mirror the rack into the URL (replaceState — no history spam).
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const query = encodeStateToQuery({ rack });
-    const next = query
-      ? `${window.location.pathname}?${query}${window.location.hash}`
-      : `${window.location.pathname}${window.location.hash}`;
-    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    if (next !== current) window.history.replaceState(null, "", next);
-  }, [rack]);
+  // Mirror the rack + revealed combination into the URL (replaceState — no
+  // history spam). Declared below, after `comboBase` is derived; see there.
 
   const preprocessed = useMemo<string[] | null>(() => {
     if (dictState.status !== "ready") return null;
@@ -167,12 +183,24 @@ export default function App() {
   useEffect(() => {
     setStep(-1);
     setNoMatches(false);
+    setWordOrder(null);
   }, [searchKey]);
 
-  // Any newly revealed combination starts in the engine's word order.
+  // A shared link may carry the sender's revealed combination — once the
+  // dictionary is in and combos exist, jump straight to it, in the sender's
+  // word order. Runs at most once per page load.
   useEffect(() => {
-    setWordOrder(null);
-  }, [step, searchKey]);
+    if (pendingAnagram.current === "" || combos.length === 0) return;
+    const wanted = pendingAnagram.current
+      .split(/\s+/)
+      .map((w) => normalizeFinalLetters(keepHebrewLetters(w)))
+      .filter((w) => w !== "");
+    pendingAnagram.current = "";
+    const idx = combos.findIndex((c) => sameWordMultiset(c.words, wanted));
+    if (idx < 0) return;
+    setStep(order.indexOf(idx));
+    setWordOrder(permutationFor(combos[idx].words, wanted));
+  }, [combos, order]);
 
   function handleNext() {
     if (combos.length === 0) {
@@ -181,6 +209,7 @@ export default function App() {
       return;
     }
     setStep((s) => s + 1);
+    setWordOrder(null); // each reveal starts in the engine's word order
   }
 
   const combo = step >= 0 && combos.length > 0 ? combos[order[step % order.length]] : null;
@@ -210,9 +239,24 @@ export default function App() {
     });
   }
 
+  // The revealed combination in the user's order, dictionary base form —
+  // what travels in the URL so the link opens on the same board.
+  const comboBase = orderedWords ? orderedWords.join(" ") : "";
+
+  // Mirror the rack + revealed combination into the URL.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const query = encodeStateToQuery({ rack, anagram: comboBase });
+    const next = query
+      ? `${window.location.pathname}?${query}${window.location.hash}`
+      : `${window.location.pathname}${window.location.hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (next !== current) window.history.replaceState(null, "", next);
+  }, [rack, comboBase]);
+
   async function handleShare() {
     const letters = rack.trim();
-    const url = buildShareUrl({ rack });
+    const url = buildShareUrl({ rack, anagram: comboBase });
     const text = shareText(letters);
     if (typeof navigator.share === "function") {
       try {
@@ -262,6 +306,11 @@ export default function App() {
           className="rack"
           onSubmit={(e) => {
             e.preventDefault();
+            // On touch devices Enter should also dismiss the keyboard so the
+            // board is visible; on desktop keep focus for Enter-spamming.
+            if (window.matchMedia("(pointer: coarse)").matches) {
+              inputRef.current?.blur();
+            }
             handleNext();
           }}
         >

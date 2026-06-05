@@ -1,18 +1,23 @@
-// URL state for the app: the only shareable state is the typed letters.
-// Encoded as `?q=…` so existing shared links (which used `q` for the rack)
-// keep working; all other legacy params (m/min/nf/sort/f) are ignored.
+// URL state for the app: the typed letters (`q`) and, optionally, the
+// currently revealed anagram (`a`, space-separated words in dictionary base
+// form) — so a shared link opens with the same combination already on the
+// board. Legacy params from the old multi-mode UI (m/min/nf/sort/f) are
+// ignored.
 
 export interface AppUrlState {
   rack: string;
+  /** Space-separated revealed combination, or "" for none. */
+  anagram: string;
 }
 
 /**
  * Encode app state into a URL query string (without the leading `?`).
- * An empty rack yields an empty string so the bare URL stays clean.
+ * Empty fields are omitted so the bare URL stays clean.
  */
 export function encodeStateToQuery(state: AppUrlState): string {
   const params = new URLSearchParams();
   if (state.rack !== "") params.set("q", state.rack);
+  if (state.anagram !== "") params.set("a", state.anagram);
   return params.toString();
 }
 
@@ -23,7 +28,7 @@ export function encodeStateToQuery(state: AppUrlState): string {
  */
 export function decodeQueryToState(query: string): AppUrlState {
   const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
-  return { rack: params.get("q") ?? "" };
+  return { rack: params.get("q") ?? "", anagram: params.get("a") ?? "" };
 }
 
 /**
