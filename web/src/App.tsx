@@ -8,6 +8,7 @@ import {
 } from "./lib/hebrew";
 import {
   findMultiWordAnagrams,
+  isRequiredWordSatisfiable,
   MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS,
   type MultiWordResult,
 } from "./lib/multiwordAnagrams";
@@ -18,6 +19,11 @@ import {
   APP_TITLE,
   APP_VERSION,
   CLEAR_ARIA,
+  FIXED_CLEAR_ARIA,
+  FIXED_INPUT_ARIA,
+  FIXED_INVALID_ARIA,
+  FIXED_PLACEHOLDER,
+  FIXED_TOGGLE_LABEL,
   INPUT_ARIA,
   INPUT_PLACEHOLDER,
   NEXT_BUTTON_LABEL,
@@ -96,7 +102,7 @@ function typedArrangement(rack: string): PlacedTile[][] {
 const INITIAL_FROM_URL =
   typeof window !== "undefined"
     ? decodeQueryToState(window.location.search)
-    : { rack: "", anagram: "" };
+    : { rack: "", fixedWord: "", anagram: "" };
 
 /** True iff the two word lists contain the same words (order-insensitive). */
 function sameWordMultiset(a: readonly string[], b: readonly string[]): boolean {
@@ -122,6 +128,8 @@ function permutationFor(
 
 export default function App() {
   const [rack, setRack] = useState(INITIAL_FROM_URL.rack);
+  const [fixedWord, setFixedWord] = useState(INITIAL_FROM_URL.fixedWord);
+  const [showFixed, setShowFixed] = useState(INITIAL_FROM_URL.fixedWord !== "");
   const [dictState, setDictState] = useState<DictState>({ status: "loading" });
   const [step, setStep] = useState(-1); // -1 = no combination revealed yet
   const [wordOrder, setWordOrder] = useState<number[] | null>(null);
@@ -168,24 +176,33 @@ export default function App() {
   const searchKey = normalizeFinalLetters(typedLetters);
   const tooLong = searchKey.length > MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS;
 
+  // The fixed word in search form. Non-empty → every combination contains it.
+  const fixedKey = normalizeFinalLetters(keepHebrewLetters(fixedWord));
+  const fixedInvalid =
+    fixedKey !== "" &&
+    searchKey !== "" &&
+    !tooLong &&
+    !isRequiredWordSatisfiable(fixedKey, searchKey);
+
   const combos = useMemo<MultiWordResult[]>(() => {
     if (!preprocessed || searchKey === "" || tooLong) return [];
     return findMultiWordAnagrams(searchKey, preprocessed, {
       minWords: 1,
+      requiredWord: fixedKey || undefined,
     }).filter(
       // The input spelled identically back at you isn't a "match".
       (combo) => !(combo.words.length === 1 && combo.words[0] === searchKey),
     );
-  }, [preprocessed, searchKey, tooLong]);
+  }, [preprocessed, searchKey, tooLong, fixedKey]);
 
   const order = useMemo(() => shuffledIndices(combos.length), [combos]);
 
-  // New letters → back to the un-revealed state.
+  // New letters or a new constraint → back to the un-revealed state.
   useEffect(() => {
     setStep(-1);
     setNoMatches(false);
     setWordOrder(null);
-  }, [searchKey]);
+  }, [searchKey, fixedKey]);
 
   // A shared link may carry the sender's revealed combination — once the
   // dictionary is in and combos exist, jump straight to it, in the sender's
@@ -250,20 +267,20 @@ export default function App() {
   // what travels in the URL so the link opens on the same board.
   const comboBase = orderedWords ? orderedWords.join(" ") : "";
 
-  // Mirror the rack + revealed combination into the URL.
+  // Mirror the rack + fixed word + revealed combination into the URL.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const query = encodeStateToQuery({ rack, anagram: comboBase });
+    const query = encodeStateToQuery({ rack, fixedWord, anagram: comboBase });
     const next = query
       ? `${window.location.pathname}?${query}${window.location.hash}`
       : `${window.location.pathname}${window.location.hash}`;
     const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     if (next !== current) window.history.replaceState(null, "", next);
-  }, [rack, comboBase]);
+  }, [rack, fixedWord, comboBase]);
 
   async function handleShare() {
     const letters = rack.trim();
-    const url = buildShareUrl({ rack, anagram: comboBase });
+    const url = buildShareUrl({ rack, fixedWord, anagram: comboBase });
     const text = shareText(letters);
     if (typeof navigator.share === "function") {
       try {
@@ -290,6 +307,10 @@ export default function App() {
   else if (noMatches) status = STATUS_NO_MATCHES;
   else if (combo) status = statusCounter((step % order.length) + 1, combos.length);
 
+  // Row index of the fixed word on the board, for the golden highlight.
+  const lockedRow =
+    fixedKey !== "" && orderedWords ? orderedWords.indexOf(fixedKey) : -1;
+
   return (
     <div className="table">
       <header className="brand">
@@ -310,41 +331,106 @@ export default function App() {
 
       <main className="play">
         <form
-          className="rack"
+          className="rack-area"
           onSubmit={(e) => {
             e.preventDefault();
             // On touch devices Enter should also dismiss the keyboard so the
             // board is visible; on desktop keep focus for Enter-spamming.
             if (window.matchMedia("(pointer: coarse)").matches) {
-              inputRef.current?.blur();
+              (document.activeElement as HTMLElement | null)?.blur();
             }
             handleNext();
           }}
         >
-          <input
-            ref={inputRef}
-            type="text"
-            dir="rtl"
-            value={rack}
-            onChange={(e) => setRack(e.target.value)}
-            placeholder={INPUT_PLACEHOLDER}
-            aria-label={INPUT_ARIA}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            enterKeyHint="go"
-          />
-          {rack !== "" && (
+          <div className="rack">
+            <input
+              ref={inputRef}
+              type="text"
+              dir="rtl"
+              value={rack}
+              onChange={(e) => setRack(e.target.value)}
+              placeholder={INPUT_PLACEHOLDER}
+              aria-label={INPUT_ARIA}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
+            />
+            {rack !== "" && (
+              <button
+                type="button"
+                className="rack__clear"
+                aria-label={CLEAR_ARIA}
+                onClick={() => {
+                  setRack("");
+                  inputRef.current?.focus();
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {showFixed ? (
+            <div className={"fixed-rack" + (fixedInvalid ? " fixed-rack--invalid" : "")}>
+              <svg
+                className="fixed-rack__lock"
+                viewBox="0 0 16 16"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect
+                  x="3.5"
+                  y="7"
+                  width="9"
+                  height="6.5"
+                  rx="1.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                />
+                <path
+                  d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <input
+                type="text"
+                dir="rtl"
+                value={fixedWord}
+                onChange={(e) => setFixedWord(e.target.value)}
+                placeholder={FIXED_PLACEHOLDER}
+                aria-label={FIXED_INPUT_ARIA}
+                aria-invalid={fixedInvalid}
+                title={fixedInvalid ? FIXED_INVALID_ARIA : undefined}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="go"
+                autoFocus={fixedWord === ""}
+              />
+              <button
+                type="button"
+                className="fixed-rack__clear"
+                aria-label={FIXED_CLEAR_ARIA}
+                onClick={() => {
+                  setFixedWord("");
+                  setShowFixed(false);
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
-              className="rack__clear"
-              aria-label={CLEAR_ARIA}
-              onClick={() => {
-                setRack("");
-                inputRef.current?.focus();
-              }}
+              className="fixed-toggle"
+              onClick={() => setShowFixed(true)}
             >
-              ×
+              {FIXED_TOGGLE_LABEL}
             </button>
           )}
         </form>
@@ -381,6 +467,7 @@ export default function App() {
         <TileBoard
           words={words}
           shakeNonce={shakeNonce}
+          lockedRow={lockedRow}
           onReorderWords={combo && combo.words.length > 1 ? handleReorderWords : undefined}
         />
 

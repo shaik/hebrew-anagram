@@ -1,11 +1,14 @@
-// URL state for the app: the typed letters (`q`) and, optionally, the
-// currently revealed anagram (`a`, space-separated words in dictionary base
-// form) — so a shared link opens with the same combination already on the
-// board. Legacy params from the old multi-mode UI (m/min/nf/sort/f) are
-// ignored.
+// URL state for the app: the typed letters (`q`), an optional fixed word
+// (`f`, every combination must contain it — same param the legacy UI used,
+// so old links keep working), and optionally the currently revealed anagram
+// (`a`, space-separated words in dictionary base form) — so a shared link
+// opens with the same combination already on the board. Other legacy params
+// from the old multi-mode UI (m/min/nf/sort) are ignored.
 
 export interface AppUrlState {
   rack: string;
+  /** Word every combination must contain, or "" for no constraint. */
+  fixedWord: string;
   /** Space-separated revealed combination, or "" for none. */
   anagram: string;
 }
@@ -17,6 +20,7 @@ export interface AppUrlState {
 export function encodeStateToQuery(state: AppUrlState): string {
   const params = new URLSearchParams();
   if (state.rack !== "") params.set("q", state.rack);
+  if (state.fixedWord !== "") params.set("f", state.fixedWord);
   if (state.anagram !== "") params.set("a", state.anagram);
   return params.toString();
 }
@@ -28,7 +32,11 @@ export function encodeStateToQuery(state: AppUrlState): string {
  */
 export function decodeQueryToState(query: string): AppUrlState {
   const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
-  return { rack: params.get("q") ?? "", anagram: params.get("a") ?? "" };
+  return {
+    rack: params.get("q") ?? "",
+    fixedWord: params.get("f") ?? "",
+    anagram: params.get("a") ?? "",
+  };
 }
 
 /**

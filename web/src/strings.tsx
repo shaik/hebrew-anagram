@@ -6,13 +6,22 @@
 // their own files.
 // ============================================================================
 
+import type { ReactNode } from "react";
+
 export const APP_TITLE = "אנגרמות";
 export const APP_TAGLINE = "אנגרמות, כי גימטריה זה לחלשים";
-export const APP_FOOTER =
-  "עוד מוצר מטריפ מבית היוצר של שי כפיר ועוזריהם. ללא חשש טבל ושביעית";
+export const APP_FOOTER: ReactNode = (
+  <>
+    עוד מוצר מטריפ מבית היוצר של{" "}
+    <a href="https://shaikfir.com" target="_blank" rel="noopener">
+      שי כפיר
+    </a>{" "}
+    ועוזריהם
+  </>
+);
 
 // Bump by 0.01 on every code change. Rendered in the footer.
-export const APP_VERSION = "1.18";
+export const APP_VERSION = "1.20";
 
 // ----- Input rack -----------------------------------------------------------
 
@@ -56,3 +65,12 @@ export function shareText(letters: string): string {
 // ----- Word reorder hint --------------------------------------------------------
 
 export const REORDER_HINT = "שנה את סדר המלים בגרירה";
+
+// ----- Fixed word ----------------------------------------------------------------
+
+export const FIXED_TOGGLE_LABEL = "+ מילה קבועה";
+export const FIXED_INPUT_ARIA = "מילה קבועה";
+export const FIXED_PLACEHOLDER = "מילה שתופיע בכל צירוף";
+export const FIXED_CLEAR_ARIA = "הסר את המילה הקבועה";
+/** Screen-reader description for the invalid (red-ring) fixed-word state. */
+export const FIXED_INVALID_ARIA = "המילה הקבועה אינה מורכבת מהאותיות שהוזנו";

@@ -11,6 +11,8 @@ interface TileBoardProps {
   words: readonly (readonly PlacedTile[])[];
   /** Bump to shake the whole board (e.g. "no matches" feedback). */
   shakeNonce: number;
+  /** Row index of the fixed (locked) word, or -1 — gets a golden tint. */
+  lockedRow?: number;
   /**
    * When provided (and there is more than one row), rows can be dragged up
    * and down; called with the dragged row's index and its drop index.
@@ -47,7 +49,12 @@ interface DragState {
  * Word rows can be dragged vertically to reorder; the drop commits through
  * `onReorderWords` and the same FLIP pass flies the letters into place.
  */
-export function TileBoard({ words, shakeNonce, onReorderWords }: TileBoardProps) {
+export function TileBoard({
+  words,
+  shakeNonce,
+  lockedRow = -1,
+  onReorderWords,
+}: TileBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const prevRects = useRef<Map<number, DOMRect>>(new Map());
   const drag = useRef<DragState | null>(null);
@@ -191,7 +198,8 @@ export function TileBoard({ words, shakeNonce, onReorderWords }: TileBoardProps)
           className={
             "board__word" +
             (draggable ? " board__word--draggable" : "") +
-            (wi === draggingIndex ? " board__word--dragging" : "")
+            (wi === draggingIndex ? " board__word--dragging" : "") +
+            (wi === lockedRow ? " board__word--locked" : "")
           }
           key={wi}
           onPointerDown={(e) => handlePointerDown(e, wi)}

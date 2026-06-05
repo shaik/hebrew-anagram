@@ -193,6 +193,13 @@ body::before {
 
 /* ----- Input rack ------------------------------------------------------------ */
 
+.rack-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .rack {
   position: relative;
   width: 100%;
@@ -252,6 +259,119 @@ body::before {
 }
 
 .rack__clear:hover {
+  background: rgba(241, 232, 210, 0.22);
+  color: var(--cream);
+}
+
+/* ----- Fixed word: quiet toggle → slim secondary rack ------------------------ */
+
+.fixed-toggle {
+  margin-top: 0.55rem;
+  padding: 0.2rem 0.6rem;
+  border: 0;
+  background: none;
+  color: var(--cream-faint);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.fixed-toggle:hover,
+.fixed-toggle:focus-visible {
+  color: var(--cream-dim);
+}
+
+.fixed-rack {
+  position: relative;
+  margin-top: 0.55rem;
+  width: min(100%, 17rem);
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--rack-hi) 0%, #4a3119 40%, var(--rack-lo) 100%);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 16px -10px rgba(0, 0, 0, 0.6);
+}
+
+.fixed-rack__lock {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-inline-start: 0.7rem;
+  flex-shrink: 0;
+  color: var(--brass-hi);
+  opacity: 0.85;
+}
+
+.fixed-rack input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem 0.5rem 0.5rem 2.1rem; /* room for the × on the left (RTL) */
+  border: 0;
+  background: transparent;
+  color: var(--cream);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.08em;
+  outline: none;
+  caret-color: var(--brass-hi);
+}
+
+.fixed-rack input::placeholder {
+  color: var(--cream-faint);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.fixed-rack:focus-within {
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 2px rgba(238, 201, 97, 0.4),
+    0 8px 16px -10px rgba(0, 0, 0, 0.6);
+}
+
+/* Invalid fixed word: terracotta ring + red-tinted lock and text. Stays the
+   site's warm palette — an aged-copper warning, not a web-form red. */
+.fixed-rack--invalid,
+.fixed-rack--invalid:focus-within {
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 2px rgba(217, 119, 87, 0.75),
+    0 8px 16px -10px rgba(0, 0, 0, 0.6);
+}
+
+.fixed-rack--invalid .fixed-rack__lock {
+  color: #d97757;
+}
+
+.fixed-rack--invalid input {
+  color: #e8a78f;
+  caret-color: #d97757;
+}
+
+.fixed-rack__clear {
+  position: absolute;
+  inset-inline-start: 0.35rem;
+  top: 50%;
+  translate: 0 -50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(241, 232, 210, 0.12);
+  color: var(--cream-dim);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fixed-rack__clear:hover {
   background: rgba(241, 232, 210, 0.22);
   color: var(--cream);
 }
@@ -379,6 +499,17 @@ body::before {
   filter: drop-shadow(0 14px 14px rgba(0, 0, 0, 0.45));
 }
 
+/* The fixed word's row: a warmer, golden tile face. */
+.board__word--locked .tile {
+  background: linear-gradient(155deg, #f7e6b8 0%, #e2c179 100%);
+  box-shadow:
+    inset 0 2px 1px rgba(255, 255, 255, 0.7),
+    inset 0 -4px 6px -3px rgba(146, 100, 30, 0.65),
+    inset 0 0 0 1px rgba(160, 116, 40, 0.3),
+    0 2px 2px rgba(0, 0, 0, 0.3),
+    0 8px 14px -7px rgba(0, 0, 0, 0.65);
+}
+
 /* ----- Status line ------------------------------------------------------------ */
 
 .status {
@@ -439,12 +570,24 @@ body::before {
 .footer {
   padding-top: 1.1rem;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.15rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.45rem;
   font-size: 0.72rem;
   color: var(--cream-faint);
   text-align: center;
+}
+
+.footer a {
+  color: var(--cream-dim);
+  text-decoration: underline;
+  text-decoration-color: rgba(241, 232, 210, 0.3);
+  text-underline-offset: 2px;
+}
+
+.footer a:hover {
+  color: var(--cream);
 }
 
 .footer__version {
