@@ -21,6 +21,7 @@ import {
   INPUT_ARIA,
   INPUT_PLACEHOLDER,
   NEXT_BUTTON_LABEL,
+  PREV_BUTTON_ARIA,
   REORDER_HINT,
   SHARE_ARIA,
   SHARE_COPIED,
@@ -212,6 +213,12 @@ export default function App() {
     setWordOrder(null); // each reveal starts in the engine's word order
   }
 
+  function handlePrev() {
+    if (step < 1) return;
+    setStep((s) => s - 1);
+    setWordOrder(null);
+  }
+
   const combo = step >= 0 && combos.length > 0 ? combos[order[step % order.length]] : null;
 
   // The combination's words in the user's drag order (engine order until
@@ -342,14 +349,34 @@ export default function App() {
           )}
         </form>
 
-        <button
-          type="button"
-          className="next-btn"
-          onClick={handleNext}
-          disabled={dictState.status !== "ready" || typedLetters === ""}
-        >
-          {NEXT_BUTTON_LABEL}
-        </button>
+        <div className="controls">
+          <button
+            type="button"
+            className="next-btn"
+            onClick={handleNext}
+            disabled={dictState.status !== "ready" || typedLetters === ""}
+          >
+            {NEXT_BUTTON_LABEL}
+          </button>
+          <button
+            type="button"
+            className="back-btn"
+            onClick={handlePrev}
+            disabled={step < 1}
+            aria-label={PREV_BUTTON_ARIA}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path
+                d="M6 3.5 10.5 8 6 12.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
 
         <TileBoard
           words={words}

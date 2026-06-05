@@ -12,7 +12,7 @@ export const APP_FOOTER =
   "עוד מוצר מטריפ מבית היוצר של שי כפיר ועוזריהם. ללא חשש טבל ושביעית";
 
 // Bump by 0.01 on every code change. Rendered in the footer.
-export const APP_VERSION = "1.17";
+export const APP_VERSION = "1.18";
 
 // ----- Input rack -----------------------------------------------------------
 
@@ -20,9 +20,10 @@ export const INPUT_ARIA = "אותיות לחיפוש";
 export const INPUT_PLACEHOLDER = "הקלידו אותיות…";
 export const CLEAR_ARIA = "נקה את האותיות";
 
-// ----- Next-match button ----------------------------------------------------
+// ----- Next / previous buttons ------------------------------------------------
 
 export const NEXT_BUTTON_LABEL = "הצירוף הבא";
+export const PREV_BUTTON_ARIA = "הצירוף הקודם";
 
 // ----- Status line ----------------------------------------------------------
 
