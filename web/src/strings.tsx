@@ -21,7 +21,7 @@ export const APP_FOOTER: ReactNode = (
 );
 
 // Bump by 0.01 on every code change. Rendered in the footer.
-export const APP_VERSION = "1.20";
+export const APP_VERSION = "1.21";
 
 // ----- Input rack -----------------------------------------------------------
 

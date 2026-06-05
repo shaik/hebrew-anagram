@@ -236,6 +236,20 @@ export default function App() {
     setWordOrder(null);
   }
 
+  // Enter in either input reveals the next combination. The form never
+  // implicitly submits (it has two inputs and no submit button), so each
+  // input handles the key itself. On touch devices Enter also blurs the
+  // input so the keyboard closes and the board is visible; on desktop
+  // focus stays for Enter-spamming.
+  function handleEnterKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (window.matchMedia("(pointer: coarse)").matches) {
+      e.currentTarget.blur();
+    }
+    handleNext();
+  }
+
   const combo = step >= 0 && combos.length > 0 ? combos[order[step % order.length]] : null;
 
   // The combination's words in the user's drag order (engine order until
@@ -330,18 +344,7 @@ export default function App() {
       </header>
 
       <main className="play">
-        <form
-          className="rack-area"
-          onSubmit={(e) => {
-            e.preventDefault();
-            // On touch devices Enter should also dismiss the keyboard so the
-            // board is visible; on desktop keep focus for Enter-spamming.
-            if (window.matchMedia("(pointer: coarse)").matches) {
-              (document.activeElement as HTMLElement | null)?.blur();
-            }
-            handleNext();
-          }}
-        >
+        <form className="rack-area" onSubmit={(e) => e.preventDefault()}>
           <div className="rack">
             <input
               ref={inputRef}
@@ -349,6 +352,7 @@ export default function App() {
               dir="rtl"
               value={rack}
               onChange={(e) => setRack(e.target.value)}
+              onKeyDown={handleEnterKey}
               placeholder={INPUT_PLACEHOLDER}
               aria-label={INPUT_ARIA}
               autoComplete="off"
@@ -402,6 +406,7 @@ export default function App() {
                 dir="rtl"
                 value={fixedWord}
                 onChange={(e) => setFixedWord(e.target.value)}
+                onKeyDown={handleEnterKey}
                 placeholder={FIXED_PLACEHOLDER}
                 aria-label={FIXED_INPUT_ARIA}
                 aria-invalid={fixedInvalid}
