@@ -1,0 +1,96 @@
+metaswarm-hebrew-anagram-poc — metaswarm setup
+Run at: 2026-05-07T22:45:47
+Mode:   check-only
+
+======================================================================
+  Repository preflight
+======================================================================
+[INFO] Detected repo root — /Users/shaik/projects/metaswarm-hebrew-anagram-poc
+[INFO] Current working directory — /Users/shaik/projects/metaswarm-hebrew-anagram-poc
+[PASS] git installed — /opt/homebrew/bin/git
+[PASS] Directory is a git repository
+[INFO] Current branch — main
+[INFO] Current commit — 299956ad218b52b3fe0fa1d814be53d32e9b9357
+[PASS] Working tree clean
+[PASS] .gitignore exists
+[PASS] All 9 expected project files present
+
+======================================================================
+  Python / project preflight
+======================================================================
+[INFO] Python executable — /Users/shaik/projects/metaswarm-hebrew-anagram-poc/.venv/bin/python3
+[INFO] Python version — 3.14.2 (main, Dec  5 2025, 16:49:16) [Clang 17.0.0 (clang-1700.6.3.2)]
+[PASS] Virtual environment active — /Users/shaik/projects/metaswarm-hebrew-anagram-poc/.venv
+[PASS] pytest importable — version 9.0.3
+
+Running pytest (timeout 60s)...
+[PASS] pytest passed — 64 passed in 0.02s
+
+---- pytest stdout ----
+................................................................         [100%]
+64 passed in 0.02s
+---- end pytest output ----
+
+======================================================================
+  Agent CLI preflight
+======================================================================
+[PASS] claude found in PATH — /Users/shaik/.local/bin/claude
+[INFO] claude --version — 2.1.132 (Claude Code)
+[PASS] gemini found in PATH — /Users/shaik/.local/state/fnm_multishells/10879_1777834226752/bin/gemini
+[INFO] gemini --version — 0.39.0
+[PASS] codex found in PATH — /Users/shaik/.local/state/fnm_multishells/10879_1777834226752/bin/codex
+[INFO] codex --version — codex-cli 0.129.0
+[PASS] codex login status — logged in — Logged in using ChatGPT
+
+Note: only binary availability + --version was checked for claude / gemini / codex.
+This script does NOT invoke interactive login or send prompts to any agent.
+
+======================================================================
+  Metaswarm prerequisites
+======================================================================
+[PASS] node available — /Users/shaik/.local/state/fnm_multishells/10879_1777834226752/bin/node
+[INFO] node --version — v20.19.0
+[PASS] npm available — /Users/shaik/.local/state/fnm_multishells/10879_1777834226752/bin/npm
+[INFO] npm --version — 10.8.2
+[PASS] npx available — /Users/shaik/.local/state/fnm_multishells/10879_1777834226752/bin/npx
+[INFO] npx --version — 10.8.2
+[PASS] gh available — /opt/homebrew/bin/gh
+[INFO] gh --version — gh version 2.88.1 (2026-03-12)
+[INFO] metaswarm not in PATH — may be invocable via npx — checked next
+[WARN] npx --no-install metaswarm --help failed — npm error npx canceled due to missing packages and no YES option: ["metaswarm@0.9.2"]
+
+======================================================================
+  Existing metaswarm-related files (before)
+======================================================================
+[INFO] Detected 4 matching path(s)
+  - .ai/validation-runs/metaswarm_setup_20260507_224330.txt
+  - .claude
+  - .claude/settings.local.json
+  - scripts/setup_metaswarm.py
+
+======================================================================
+  Summary
+======================================================================
+Overall status: WARN
+  PASS: 16
+  WARN: 1
+  FAIL: 0
+  INFO: 15
+
+No init commands ran (--check-only mode).
+
+Metaswarm-related paths before init: 4
+Metaswarm-related paths after init:  4
+
+Next manual steps:
+  1. Review this report.
+  2. Run: git status   (inspect any new files)
+  3. Inspect metaswarm-created files before committing.
+  4. Open Claude Code in this repo.
+  5. Manually run the metaswarm Claude-side slash commands, e.g.:
+       /setup                     (or  /metaswarm:setup)
+       /external-tools-health     (or  /metaswarm:external-tools-health)
+  6. Copy the Claude-side health output back here for review.
+
+Reminder: this script does not run Claude slash commands or send prompts to any agent.
+The Claude-side part of the setup must still be done manually inside Claude Code.
