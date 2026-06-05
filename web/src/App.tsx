@@ -11,7 +11,7 @@ import {
   MULTI_WORD_DEFAULT_MAX_INPUT_LETTERS,
   type MultiWordResult,
 } from "./lib/multiwordAnagrams";
-import { decodeQueryToState, encodeStateToQuery } from "./lib/urlState";
+import { buildShareUrl, decodeQueryToState, encodeStateToQuery } from "./lib/urlState";
 import {
   APP_FOOTER,
   APP_TAGLINE,
@@ -21,6 +21,11 @@ import {
   INPUT_ARIA,
   INPUT_PLACEHOLDER,
   NEXT_BUTTON_LABEL,
+  REORDER_HINT,
+  SHARE_ARIA,
+  SHARE_COPIED,
+  SHARE_LABEL,
+  shareText,
   STATUS_DICT_ERROR,
   STATUS_LOADING,
   STATUS_NO_MATCHES,
@@ -96,9 +101,12 @@ export default function App() {
   const [rack, setRack] = useState(INITIAL_RACK);
   const [dictState, setDictState] = useState<DictState>({ status: "loading" });
   const [step, setStep] = useState(-1); // -1 = no combination revealed yet
+  const [wordOrder, setWordOrder] = useState<number[] | null>(null);
   const [noMatches, setNoMatches] = useState(false);
   const [shakeNonce, setShakeNonce] = useState(0);
+  const [shareCopied, setShareCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     let cancelled = false;
@@ -161,6 +169,11 @@ export default function App() {
     setNoMatches(false);
   }, [searchKey]);
 
+  // Any newly revealed combination starts in the engine's word order.
+  useEffect(() => {
+    setWordOrder(null);
+  }, [step, searchKey]);
+
   function handleNext() {
     if (combos.length === 0) {
       setNoMatches(searchKey !== "");
@@ -171,10 +184,53 @@ export default function App() {
   }
 
   const combo = step >= 0 && combos.length > 0 ? combos[order[step % order.length]] : null;
+
+  // The combination's words in the user's drag order (engine order until
+  // the user drags).
+  const orderedWords = useMemo<readonly string[] | null>(() => {
+    if (!combo) return null;
+    if (!wordOrder || wordOrder.length !== combo.words.length) return combo.words;
+    return wordOrder.map((i) => combo.words[i]);
+  }, [combo, wordOrder]);
+
   const words = useMemo<PlacedTile[][]>(
-    () => (combo ? arrangeTiles(typedLetters, combo.words) : typedArrangement(rack)),
-    [combo, typedLetters, rack],
+    () => (orderedWords ? arrangeTiles(typedLetters, orderedWords) : typedArrangement(rack)),
+    [orderedWords, typedLetters, rack],
   );
+
+  function handleReorderWords(from: number, to: number) {
+    setWordOrder((prev) => {
+      const current =
+        prev && combo && prev.length === combo.words.length
+          ? [...prev]
+          : Array.from({ length: combo?.words.length ?? 0 }, (_, i) => i);
+      const [moved] = current.splice(from, 1);
+      current.splice(to, 0, moved);
+      return current;
+    });
+  }
+
+  async function handleShare() {
+    const letters = rack.trim();
+    const url = buildShareUrl({ rack });
+    const text = shareText(letters);
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: APP_TITLE, text, url });
+        return;
+      } catch {
+        // User cancelled or share failed — fall through to clipboard.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      setShareCopied(true);
+      clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable (e.g. insecure context) — nothing to do.
+    }
+  }
 
   let status = "";
   if (dictState.status === "loading") status = STATUS_LOADING;
@@ -246,12 +302,45 @@ export default function App() {
           {NEXT_BUTTON_LABEL}
         </button>
 
-        <TileBoard words={words} shakeNonce={shakeNonce} />
+        <TileBoard
+          words={words}
+          shakeNonce={shakeNonce}
+          onReorderWords={combo && combo.words.length > 1 ? handleReorderWords : undefined}
+        />
 
         <p className="status" aria-live="polite">
           {status}
         </p>
+
+        {combo && combo.words.length > 1 && (
+          <p className="reorder-hint">{REORDER_HINT}</p>
+        )}
       </main>
+
+      <button
+        type="button"
+        className="share-btn"
+        onClick={handleShare}
+        disabled={typedLetters === ""}
+        aria-label={SHARE_ARIA}
+      >
+        <svg
+          className="share-btn__icon"
+          viewBox="0 0 16 16"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            d="M8 1.5v8M8 1.5 5.2 4.3M8 1.5l2.8 2.8M3 7.5v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {shareCopied ? SHARE_COPIED : SHARE_LABEL}
+      </button>
 
       <footer className="footer">
         <span>{APP_FOOTER}</span>

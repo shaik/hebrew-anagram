@@ -7,12 +7,12 @@
 // ============================================================================
 
 export const APP_TITLE = "אנגרמות";
-export const APP_TAGLINE = "מערבבים את האותיות, מגלים צירוף חדש";
+export const APP_TAGLINE = "אנגרמות, כי גימטריה זה לחלשים";
 export const APP_FOOTER =
   "עוד מוצר מטריפ מבית היוצר של שי כפיר ועוזריהם. ללא חשש טבל ושביעית";
 
 // Bump by 0.01 on every code change. Rendered in the footer.
-export const APP_VERSION = "1.11";
+export const APP_VERSION = "1.15";
 
 // ----- Input rack -----------------------------------------------------------
 
@@ -39,3 +39,19 @@ export function statusTooLong(maxLetters: number): string {
 export function statusCounter(current: number, total: number): string {
   return `צירוף ${current.toLocaleString("he-IL")} מתוך ${total.toLocaleString("he-IL")}`;
 }
+
+// ----- Share button -----------------------------------------------------------
+
+export const SHARE_LABEL = "שתפו";
+export const SHARE_ARIA = "שתפו קישור לאותיות ולצירוף";
+export const SHARE_COPIED = "הועתק!";
+export const SHARE_TITLE = "מחולל האנגרמות הפאן-גלקטי";
+
+/** The shared message: bold title (WhatsApp `*…*` markup) + the typed letters. */
+export function shareText(letters: string): string {
+  return `*${SHARE_TITLE}*\nאנגרמות ל״${letters}״`;
+}
+
+// ----- Word reorder hint --------------------------------------------------------
+
+export const REORDER_HINT = "שנה את סדר המלים בגרירה";

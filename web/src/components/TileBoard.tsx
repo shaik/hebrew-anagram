@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 /** One letter tile. `id` is stable across rearrangements of the same letters. */
 export interface PlacedTile {
@@ -11,6 +11,11 @@ interface TileBoardProps {
   words: readonly (readonly PlacedTile[])[];
   /** Bump to shake the whole board (e.g. "no matches" feedback). */
   shakeNonce: number;
+  /**
+   * When provided (and there is more than one row), rows can be dragged up
+   * and down; called with the dragged row's index and its drop index.
+   */
+  onReorderWords?: (from: number, to: number) => void;
 }
 
 /** Deterministic per-tile resting rotation, so the board feels hand-laid. */
@@ -25,16 +30,28 @@ function prefersReducedMotion(): boolean {
   );
 }
 
+interface DragState {
+  index: number;
+  startY: number;
+  lastY: number;
+  rowStride: number; // row height + gap, for drop-index math
+}
+
 /**
  * Renders the current arrangement as Scrabble-style tiles and animates every
  * rearrangement with a FLIP pass: each tile flies from its previous position
  * through a random mid-air scatter point, then settles into its new spot.
  * Tiles are tracked across renders by `data-tile-id`, so the animation works
  * even though React remounts tiles that move between word rows.
+ *
+ * Word rows can be dragged vertically to reorder; the drop commits through
+ * `onReorderWords` and the same FLIP pass flies the letters into place.
  */
-export function TileBoard({ words, shakeNonce }: TileBoardProps) {
+export function TileBoard({ words, shakeNonce, onReorderWords }: TileBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const prevRects = useRef<Map<number, DOMRect>>(new Map());
+  const drag = useRef<DragState | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState(-1);
 
   useLayoutEffect(() => {
     const board = boardRef.current;
@@ -117,6 +134,50 @@ export function TileBoard({ words, shakeNonce }: TileBoardProps) {
     );
   }, [shakeNonce]);
 
+  const draggable = onReorderWords !== undefined && words.length > 1;
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>, index: number) {
+    if (!draggable) return;
+    const row = e.currentTarget;
+    row.setPointerCapture(e.pointerId);
+    // Stride = distance between consecutive row tops (height + flex gap).
+    const rows = boardRef.current!.querySelectorAll<HTMLElement>(".board__word");
+    const stride =
+      rows.length > 1
+        ? rows[1].getBoundingClientRect().top - rows[0].getBoundingClientRect().top
+        : row.getBoundingClientRect().height;
+    drag.current = { index, startY: e.clientY, lastY: e.clientY, rowStride: stride };
+    setDraggingIndex(index);
+  }
+
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const d = drag.current;
+    if (!d) return;
+    d.lastY = e.clientY;
+    e.currentTarget.style.transform = `translateY(${e.clientY - d.startY}px)`;
+  }
+
+  function handlePointerEnd(e: React.PointerEvent<HTMLDivElement>) {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    const row = e.currentTarget;
+    const dy = d.lastY - d.startY;
+    const target = Math.min(
+      words.length - 1,
+      Math.max(0, Math.round(d.index + dy / d.rowStride)),
+    );
+    // Let the FLIP pass take over from where the finger left the row: record
+    // the dragged tiles' current (transformed) rects as their "previous"
+    // positions before clearing the inline transform.
+    row.querySelectorAll<HTMLElement>("[data-tile-id]").forEach((el) => {
+      prevRects.current.set(Number(el.dataset.tileId), el.getBoundingClientRect());
+    });
+    row.style.transform = "";
+    setDraggingIndex(-1);
+    if (target !== d.index) onReorderWords!(d.index, target);
+  }
+
   const maxLen = Math.max(1, ...words.map((w) => w.length));
 
   return (
@@ -126,7 +187,18 @@ export function TileBoard({ words, shakeNonce }: TileBoardProps) {
       style={{ "--cols": maxLen } as React.CSSProperties}
     >
       {words.map((word, wi) => (
-        <div className="board__word" key={wi}>
+        <div
+          className={
+            "board__word" +
+            (draggable ? " board__word--draggable" : "") +
+            (wi === draggingIndex ? " board__word--dragging" : "")
+          }
+          key={wi}
+          onPointerDown={(e) => handlePointerDown(e, wi)}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+        >
           {word.map((tile) => (
             <div
               className="tile"
