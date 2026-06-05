@@ -27,7 +27,7 @@ export const APP_FOOTER =
   "עוד מוצר מטריפ מבית היוצר של שי כפיר ועוזריהם. ללא חשש טבל ושביעית";
 
 // Bump by 0.01 on every code change. Rendered in the footer.
-export const APP_VERSION = "1.09";
+export const APP_VERSION = "1.10";
 
 // ----- Mode toggle ---------------------------------------------------------
 

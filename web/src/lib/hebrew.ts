@@ -1,5 +1,4 @@
-// Hebrew text normalization utilities. Mirrors src/hebrew_anagram/letters.py
-// in the Python reference implementation. Keep behavior in sync.
+// Hebrew text normalization utilities.
 
 const NIQQUD_START = 0x0591;
 const NIQQUD_END = 0x05c7;

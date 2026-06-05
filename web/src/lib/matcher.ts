@@ -1,4 +1,4 @@
-// Anagram matcher. Mirrors src/hebrew_anagram/matcher.py.
+// Anagram matcher.
 // Final-letter normalization is OFF by default — ם and מ are distinct.
 
 import { removeNiqqud } from "./hebrew";

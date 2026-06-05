@@ -6,54 +6,57 @@ This file mirrors CLAUDE.md but is tool-neutral.
 
 A validation POC for **metaswarm / multi-agent coding workflows**. The repository exercises agentic CLI tools on a bounded, real problem (Hebrew text normalization and anagram matching) to validate session management, test execution, git workflow, and cross-agent handoffs.
 
+The implementation is a single static, client-side web app under `web/` (React 18 + TypeScript + Vite). There is no backend. An earlier Python reference implementation was removed; `web/src/lib/` is authoritative.
+
 ## Core rules
 
 1. **Keep it simple.** Prefer the smallest correct solution.
-2. **Pure Python only.** Do not introduce libraries not already in `pyproject.toml`.
-3. **No external services.** No HTTP calls, databases, cloud SDKs, or UI frameworks.
+2. **No new runtime dependencies** without a documented reason — currently just React.
+3. **No external services.** No HTTP calls (beyond fetching the bundled dictionary), databases, cloud SDKs, or UI frameworks.
 4. **Focused changes.** One logical concern per commit.
-5. **Test everything.** Add or update pytest tests for every behavior change.
-6. **Run tests before reporting done.** Execute `pytest` and confirm all tests pass.
+5. **Test everything.** Add or update vitest tests for every behavior change.
+6. **Run tests before reporting done.** Execute `npm test` from `web/` and confirm all tests pass.
+7. **Bump `APP_VERSION`** in `web/src/strings.tsx` by +0.01 for every code-changing task.
 
 ## Hebrew Unicode rules
 
-- Niqqud diacritics live at U+0591–U+05C7; strip them with `remove_niqqud()`.
-- Final letters (ך ם ן ף ץ) are distinct from base forms by default.
-- Do not silently apply final-letter normalization; make it opt-in.
-- Validate that input is `str`; raise `TypeError` otherwise.
+- Niqqud diacritics live at U+0591–U+05C7; strip them with `removeNiqqud()` (`web/src/lib/hebrew.ts`).
+- Final letters (ך ם ן ף ץ) are distinct from base forms by default in the lib functions.
+- Do not silently apply final-letter normalization in the lib; it is opt-in. (The UI opts in by default because the bundled dictionary uses base forms at word ends.)
 
 ## Repository layout
 
 ```
-src/hebrew_anagram/   ← importable library (letters, matcher, scoring)
-tests/                ← pytest suite (mirrors src modules)
-data/                 ← sample Hebrew word list
+web/                  ← React + TS + Vite static site (own package.json)
+  src/lib/            ← core logic + co-located *.test.ts
+  src/components/     ← presentational React components
+  public/             ← static assets including the bundled dictionary
 .ai/                  ← agent task and validation notes
 CLAUDE.md             ← Claude Code-specific instructions
 AGENTS.md             ← this file
 README.md             ← human-readable docs and usage examples
-pyproject.toml        ← build config; no version pinning of library deps
 ```
 
 ## Setup commands
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
-pytest
+cd web
+npm install
+npm test         # vitest, one shot
+npm run dev      # local dev server
+npm run build    # production build → web/dist/
 ```
 
 ## Assumptions to preserve
 
-- `can_form_word` does **not** normalize final letters — document if you change this.
-- `score_word` is placeholder (letter count); label clearly if you extend it.
-- `normalize_text` collapses whitespace but preserves punctuation.
+- `canFormWord` does **not** normalize final letters — document if you change this.
+- `scoreWord` is placeholder (letter count); label clearly if you extend it.
+- `web/public/hebrew_dict.txt` is the only copy of the dictionary — do not regenerate or reorder it unless the task explicitly requires it.
 
 ## Handoff checklist
 
 Before passing work to another agent or human:
-- [ ] `pytest` passes with zero failures
-- [ ] New/changed code has type hints and a docstring
-- [ ] `data/sample_words_he.txt` is not modified unless the task explicitly requires it
-- [ ] No new dependencies added to `pyproject.toml` without justification
+- [ ] `npm test` (from `web/`) passes with zero failures
+- [ ] New/changed exports have explicit types and a short JSDoc
+- [ ] `web/public/hebrew_dict.txt` is not modified unless the task explicitly requires it
+- [ ] No new dependencies added to `web/package.json` without justification

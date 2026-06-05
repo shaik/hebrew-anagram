@@ -1,21 +1,9 @@
-# Python
+# Python (scripts/ still has metaswarm helper scripts)
 __pycache__/
 *.py[cod]
-*$py.class
 
-# Build / packaging
-*.egg-info/
-build/
+# Build
 dist/
-
-# Virtual environments
-.venv/
-venv/
-
-# Test / coverage
-.pytest_cache/
-.coverage
-htmlcov/
 
 # OS / editor
 .DS_Store

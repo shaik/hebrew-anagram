@@ -1,4 +1,4 @@
-// Dictionary loading + matching. Mirrors src/hebrew_anagram/dictionary.py.
+// Dictionary loading + matching.
 
 import { isHebrewOnly, normalizeFinalLetters, removeNiqqud } from "./hebrew";
 import { canFormWord } from "./matcher";

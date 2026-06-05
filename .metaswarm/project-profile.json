@@ -2,30 +2,30 @@
   "metaswarm_version": "1.0.0",
   "distribution": "plugin",
   "installed_at": "2026-05-07T22:50:00Z",
-  "updated_at": "2026-05-07T22:50:00Z",
+  "updated_at": "2026-06-05T00:00:00Z",
   "detection": {
-    "language": "Python",
-    "framework": null,
-    "test_runner": "pytest",
+    "language": "TypeScript",
+    "framework": "React",
+    "test_runner": "vitest",
     "linter": null,
     "formatter": null,
-    "package_manager": null,
-    "type_checker": null,
+    "package_manager": "npm",
+    "type_checker": "tsc",
     "ci": null,
     "git_hooks": null
   },
   "choices": {
-    "coverage_threshold": 100,
+    "coverage_threshold": null,
     "external_tools": true,
     "visual_review": false,
     "ci_pipeline": false,
     "git_hooks": false
   },
   "commands": {
-    "test": "pytest",
-    "coverage": "pytest --cov --cov-fail-under=100",
+    "test": "cd web && npm test",
+    "coverage": null,
     "lint": null,
-    "typecheck": null,
+    "typecheck": "cd web && npx tsc -b",
     "format_check": null
   }
 }
