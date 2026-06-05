@@ -56,62 +56,50 @@ Then in GitHub: **Settings → Pages → Source: Deploy from branch → `gh-page
 
 ---
 
-## Architecture (one-line summary)
+## The UI — "שולחן המשחק" (the game table)
 
-`App.tsx` fetches the dictionary on mount, preprocesses it (niqqud strip, optional final-letter collapse, one-letter filter, dedup), and on every keystroke filters by `canFormWord(rack, word)` and re-sorts. Components (`SearchForm`, `OptionsPanel`, `ResultsList`, `ResultCard`, `EmptyState`) are presentational; all state lives in `App`. No web worker, no router, no state-management library, no UI framework — plain React + plain CSS.
+The entire interface is **one input box and one button**. You type letters; every press of **"הצירוף הבא"** reveals a random exact-anagram combination of those letters, rendered as Scrabble-style letter tiles (pure CSS — no point values). Because every answer uses exactly the typed letters, the tiles physically **scatter mid-air and resettle** into the new word(s) on each press (FLIP + Web Animations API, no animation library; `prefers-reduced-motion` is respected).
+
+Design system: dark felt-green table (layered gradients + SVG-turbulence grain), ivory beveled tiles with embossed letters, a walnut input rack, one brass button. Hebrew fonts are **vendored locally** (`web/src/assets/fonts/` — Suez One for tiles/headings, Assistant for UI text, both OFL) so the app stays offline-capable after first load.
+
+`App.tsx` fetches the dictionary on mount, preprocesses it (niqqud strip, final-letter collapse, one-letter filter, dedup), runs `findMultiWordAnagrams` (with `minWords: 1`, identity result filtered out) when the letters change, shuffles the result order, and steps through it on each press. `components/TileBoard.tsx` is the only presentational component. The typed letters mirror to the URL as `?q=` so any state is shareable by copying the address. No web worker, no router, no state-management library, no UI framework — plain React + plain CSS.
 
 ## Design notes
 
-- **Final letters** (ך ם ן ף ץ) are treated as distinct from their base forms by default in the lib functions; normalization is opt-in.
+- **Final letters** (ך ם ן ף ץ) are treated as distinct from their base forms by default in the lib functions; normalization is opt-in. The UI applies it **always** (see Dictionary below).
 - **Niqqud** (U+0591–U+05C7) is stripped before matching.
-- **Wildcards** (`?`) consume one Hebrew letter each; they do not match niqqud or whitespace.
-- Scoring is intentionally trivial (1 pt / letter) and will be replaced in a future iteration.
+- Non-Hebrew input characters are silently dropped; `?` wildcards are not supported in the anagram engine the UI uses.
+- Scoring (`lib/scoring.ts`) is intentionally trivial (1 pt / letter) and currently has no UI.
 
 ## Dictionary
 
 - The bundled dictionary is `web/public/hebrew_dict.txt` (~10,000 entries, ~111 KB). It is the only copy in the repo.
 - One-letter entries are filtered out by default during preprocessing.
-- **Final-letter normalization defaults to ON in the UI** (the toggle in the Options panel): the bundled dictionary uses base forms (`מ`, `נ`, …) at word ends instead of final forms (`ם`, `ן`, …), so without normalization a user typing "שלום" would match zero entries. Users can still turn it off in the UI.
+- **Final-letter normalization is always on**: the bundled dictionary uses base forms (`מ`, `נ`, …) at word ends instead of final forms (`ם`, `ן`, …), so without normalization a user typing "שלום" would match zero entries. The previous UI exposed this as a toggle; the redesigned UI does not.
 
 ## Display: final-letter restoration
 
-Internal matching keeps Hebrew words in base form (e.g. `שלומ`, `מלכ`) so the bundled dictionary stays searchable. For display, `restoreFinalLettersForDisplay` (`web/src/lib/hebrew.ts`) rewrites the **last** letter of each Hebrew word to its final form when one exists (`כ→ך`, `מ→ם`, `נ→ן`, `פ→ף`, `צ→ץ`). Interior letters are left alone, whitespace and punctuation are preserved, and words that already have correct final letters pass through unchanged. The function is applied to every result word in both single-word and multi-word modes, so the UI always renders natural Hebrew.
+Internal matching keeps Hebrew words in base form (e.g. `שלומ`, `מלכ`) so the bundled dictionary stays searchable. For display, `restoreFinalLettersForDisplay` (`web/src/lib/hebrew.ts`) rewrites the **last** letter of each Hebrew word to its final form when one exists (`כ→ך`, `מ→ם`, `נ→ן`, `פ→ף`, `צ→ץ`). Interior letters are left alone, whitespace and punctuation are preserved, and words that already have correct final letters pass through unchanged. The function is applied per word of every revealed combination, so the board always renders natural Hebrew — a tile typed as `ם` may render as `מ` mid-word and back again as it moves between arrangements.
 
-## Multi-word exact anagrams
+## The anagram engine
 
-The app supports a second mode that finds combinations of 2–3 dictionary words whose letters together exactly equal the input:
+`findMultiWordAnagrams` (`web/src/lib/multiwordAnagrams.ts`) finds combinations of dictionary words whose letters together exactly equal the input:
 
-- Toggle: **"אנגרמות מרובות מילים"** in the Options panel.
-- Algorithm: input is normalized (niqqud stripped, whitespace removed, optionally final-letter-collapsed), then a depth-first search with non-decreasing candidate index walks the preprocessed dictionary up to depth 3. A combination is reported only when the remaining letter multiset is empty. The non-decreasing-index rule rules out permutation duplicates by construction.
+- Algorithm: input is normalized (niqqud stripped, whitespace removed, final-letter-collapsed), then a depth-first search with non-decreasing candidate index walks the preprocessed dictionary up to depth 3. A combination is reported only when the remaining letter multiset is empty. The non-decreasing-index rule rules out permutation duplicates by construction.
+- The UI passes `minWords: 1`, so single-word anagrams count; the identity result (the input spelled back unchanged) is filtered out.
 - Repetition: the same word may appear more than once in a combination if the input letters allow it.
-- Result cap: **200 combinations** (`MULTI_WORD_DEFAULT_MAX_RESULTS` in `web/src/lib/multiwordAnagrams.ts`). Search returns early once the cap is reached, so worst-case time stays bounded for adversarial inputs.
+- Result cap: **200 combinations** (`MULTI_WORD_DEFAULT_MAX_RESULTS`). Search returns early once the cap is reached, so worst-case time stays bounded for adversarial inputs.
 - Spaces: whitespace in the input is stripped before matching, so `"שי כפיר"` and `"שיכפיר"` produce the same combinations.
-- Wildcard: multi-word search **does not support `?`** — exact letter consumption with wildcards is intentionally out of scope. When the input contains a `?`, the UI shows a Hebrew note instead of partial results, and suggests removing the `?` or switching back to single-word mode.
-- Input-length safeguard: searches over more than **14 letters** (post-niqqud-strip, post-whitespace-strip) short-circuit and show a Hebrew note. The DFS is bounded by candidate-count³, which can grow uncomfortably with very long inputs; 14 covers natural Hebrew phrases like `שי כפיר` or `ירושלים` while keeping the main thread responsive.
+- Input-length safeguard: searches over more than **14 letters** (post-niqqud-strip, post-whitespace-strip) short-circuit and show a Hebrew note. The DFS is bounded by candidate-count³; 14 covers natural Hebrew phrases like `שי כפיר` or `ירושלים` while keeping the main thread responsive.
 - All computation runs in the browser. There is no Web Worker; the result cap + early termination + input-length cap keep typical UX snappy without one.
 
 Unit tests (`web/src/lib/multiwordAnagrams.test.ts`) cover exact consumption, 2- and 3-word combinations, partial-match rejection, spaces in input, wildcard disable, dictionary-order stability, repeated-word combos, and the result cap.
 
-### Required ("fixed") word
+## Library modules without UI
 
-In multi-word mode the user can supply an optional **"מילה קבועה"** that every returned combination must include. The fixed word is treated as one of the (up to 3) words, so with `maxWords=3` the search adds up to **2 additional** dictionary words. The fixed word appears exactly once per combination — it is excluded from the candidate pool during the additional-word search.
+The previous multi-mode UI (single-word rack search, required "fixed" word, crossword pattern search, sorting/scoring options) was replaced by the single next-match flow. Its engine code is still in the repo, fully tested, in case a mode returns:
 
-If the fixed word's letters are not a subset of the input, the UI surfaces a Hebrew error (`המילה הקבועה אינה מורכבת מהאותיות שהוזנו`) and no search runs. An empty fixed word disables the constraint entirely (back to the existing behavior).
-
-The implementation lives next to the unconstrained search in `multiwordAnagrams.ts`. A small helper `isRequiredWordSatisfiable(requiredWord, input)` is exported for UI gating.
-
-## Crossword / pattern search
-
-The third mode, **"תבנית תשבץ"**, finds dictionary words that match a positional pattern:
-
-- Input is one pattern string. Hebrew letters in the pattern are *fixed* positions; any non-Hebrew character (`?`, `.`, `*`, digits, ASCII letters, punctuation) is a *wildcard* for one letter.
-- Pattern length is measured **after** whitespace and niqqud are stripped — paste-friendly on mobile, where stray characters often sneak in.
-- Match length is **exact**: a 5-character cleaned pattern only matches 5-character dictionary words.
-- Final-letter normalization respects the same global toggle as the other modes.
-- Result cap: **500 matches** (`PATTERN_DEFAULT_MAX_RESULTS` in `web/src/lib/patternSearch.ts`).
-
-Examples (with `normalizeFinals` on, matching the bundled dictionary):
-- `??גד?` matches every 5-letter word that has `ג` at index 2 and `ד` at index 3.
-- `?א??ב??צ` matches 8-letter words with `א` at 1, `ב` at 4, `צ` at 7.
-
-Unit tests (`web/src/lib/patternSearch.test.ts`) cover fixed letters, every wildcard variant, mixed wildcards, length-mismatch rejection, whitespace and niqqud handling, the final-letter toggle, empty patterns, and the result cap.
+- `lib/matcher.ts` + `lib/dictionary.ts::findMatchingWords` — single-word rack matching with `?` wildcard.
+- `lib/multiwordAnagrams.ts::isRequiredWordSatisfiable` + the `requiredWord` option — fixed-word constrained combinations.
+- `lib/patternSearch.ts` — crossword/positional pattern search (exact length, cap 500).
+- `lib/scoring.ts` — placeholder 1-pt-per-letter scoring.

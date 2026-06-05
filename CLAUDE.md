@@ -8,24 +8,28 @@ A validation POC for **metaswarm / multi-agent coding workflows**. The goal is t
 
 The implementation is a **static, client-side web app** (`web/`): React 18 + TypeScript + Vite, deployed to GitHub Pages. There is no backend and no other implementation. (An earlier Python reference implementation was removed; the TS code under `web/src/lib/` is now authoritative.)
 
+## UI concept — "the game table"
+
+One input box and one button ("הצירוף הבא"). Each press reveals a random exact-anagram combination of the typed letters, rendered as CSS Scrabble-style tiles (no point values) that scatter mid-air and resettle into the new word(s). Mobile-first, RTL, dark felt-green theme with vendored Hebrew fonts (Suez One for tiles, Assistant for UI — woff2 files in `web/src/assets/fonts/`, kept local so the app stays offline-capable).
+
 ## Architecture (`web/src/`)
 
-- `App.tsx` owns all state. Components are presentational.
+- `App.tsx` owns all state: dictionary fetch, search, shuffled result order, tile arrangement.
+- `components/TileBoard.tsx` — renders tile rows and animates rearrangements with a FLIP pass (WAAPI `element.animate`, tracked by `data-tile-id`). Respects `prefers-reduced-motion`.
 - `lib/hebrew.ts` — niqqud strip, final-letter normalization, text normalization.
-- `lib/matcher.ts` — `canFormWord(rack, word)` with `?` wildcard.
-- `lib/dictionary.ts` — load/preprocess the word list, find dictionary words formable from a rack.
-- `lib/scoring.ts` — placeholder scoring (1 pt / letter).
-- `lib/multiwordAnagrams.ts` — exact multi-word anagrams via bounded DFS over the dictionary (cap: 200 combinations, input length ≤14, no `?` support).
-- `lib/patternSearch.ts` — crossword/positional pattern search (cap: 500 matches, exact length).
+- `lib/multiwordAnagrams.ts` — exact anagrams via bounded DFS over the dictionary (cap: 200 combinations, input length ≤14, no `?` support). The UI calls it with `minWords: 1` so single-word anagrams count too, and filters out the identity result.
+- `lib/dictionary.ts` — load/preprocess the word list (+ `findMatchingWords`, currently UI-unused).
+- `lib/matcher.ts`, `lib/patternSearch.ts`, `lib/scoring.ts` — tested reference logic from the previous multi-mode UI; **no UI currently exposes them**. Keep them green; they may return as modes.
+- `lib/urlState.ts` — the rack mirrors to `?q=` via `replaceState`; legacy params are ignored on decode.
 - `lib/hebrew.ts::restoreFinalLettersForDisplay` rewrites the **last** letter of each Hebrew word to its final form (`כ→ך`, `מ→ם`, `נ→ן`, `פ→ף`, `צ→ץ`) at render time. Matching stays in base form so the bundled dictionary (which uses base forms at word ends) remains searchable.
 - `strings.tsx` holds all user-facing strings + `APP_VERSION` (see rule below).
-- No router, no state library, no Web Worker, no UI framework. Plain React + plain CSS.
+- No router, no state library, no Web Worker, no UI framework, no animation library. Plain React + plain CSS + WAAPI.
 
 ### Dictionary
 
 The bundled dictionary lives at `web/public/hebrew_dict.txt` (Vite serves it as a static asset; the app fetches it at runtime). It is the **only** copy — the former `data/` source directory was removed along with the Python tree.
 
-**Final-letter normalization defaults to ON in the UI** because the dictionary was authored with base forms (`מ`, `נ`, …) at word ends — without the toggle a user typing "שלום" would match nothing. Users can flip it in the Options panel.
+**Final-letter normalization is always ON** (no UI toggle anymore) because the dictionary was authored with base forms (`מ`, `נ`, …) at word ends — without it a user typing "שלום" would match nothing. The lib functions keep it opt-in.
 
 ## Commands
 
